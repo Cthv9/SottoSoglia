@@ -1,0 +1,2 @@
+# SottoSoglia
+Easy budget-calculator
