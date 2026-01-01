@@ -1,7 +1,7 @@
 # SottoSoglia
 Easy budget-calculator
 
-**SottoSoglia** è una Progressive Web App (PWA) semplice e leggera per tenere sotto controllo le **spese mensili**.
+**SottoSoglia** è una App semplice e leggera per tenere sotto controllo le **spese mensili**.
 
 L’app è pensata per un uso **personale**, **offline** e **mobile-first**.  
 Tutti i dati restano **in locale nel browser**.
@@ -25,5 +25,8 @@ Tutti i dati restano **in locale nel browser**.
 ## Privacy
 Nessun account, nessun tracking, nessun dato inviato a server esterni.
 
-## Demo
-Disponibile su GitHub Pages.
+
+## 🚀 Demo
+🌐 **App online:** https://cthv9.github.io/SottoSoglia/  
+📱 **Installabile come PWA** su mobile e desktop
+
