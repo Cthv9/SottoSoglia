@@ -84,6 +84,7 @@
     .footer { margin: 14px 0 4px; text-align:center; color:#94a3b8; font-size: 12px; }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="top">
@@ -162,7 +163,33 @@
     </div>
   </div>
 
-<script>
+  <!-- Bottom sheet Export/Import (DEVE stare prima dello script) -->
+  <div id="eiBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);"></div>
+
+  <div id="eiSheet" style="
+    display:none;
+    position:fixed; left:0; right:0; bottom:0;
+    background:#0f172a; border-top:1px solid #1f2a44;
+    border-radius:16px 16px 0 0;
+    padding:14px; box-shadow:0 -10px 25px rgba(0,0,0,.35);
+  ">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div style="font-weight:900;">Esporta / Importa</div>
+      <button class="btn" id="eiClose">Chiudi</button>
+    </div>
+
+    <div style="display:grid; gap:10px; margin-top:12px;">
+      <button class="btn" id="doExport">Esporta CSV (mese corrente)</button>
+      <button class="btn" id="doImport">Importa CSV</button>
+      <div class="muted">
+        Importa aggiunge voci al <b>mese corrente</b>. Formato supportato: quello esportato dall’app.
+      </div>
+    </div>
+  </div>
+
+  <input id="csvFile" type="file" accept=".csv,text/csv" style="display:none" />
+
+  <script>
 (() => {
   // ---------- Utilities ----------
   const $ = (id) => document.getElementById(id);
@@ -474,7 +501,6 @@
       amountEur,
       label,
       isRecurring: !!recurringInput.checked,
-      // categoria (futuro)
     };
 
     await dbPut(STORE_EXP, e);
@@ -497,6 +523,78 @@
   exportBtn.onclick = () => {
     const csv = expensesToCSV(MONTH_KEY, items);
     downloadTextFile(`sottosoglia_spese_${MONTH_KEY}.csv`, csv);
+<<<<<<< Updated upstream
+=======
+    closeEISheet();
+  };
+
+  doImport.onclick = () => {
+    csvFile.value = "";
+    csvFile.click();
+  };
+
+  csvFile.onchange = async () => {
+    const file = csvFile.files && csvFile.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const table = parseCSV(text);
+      if (table.length < 2) return alert("CSV vuoto o non valido.");
+
+      const header = table[0].map(h => String(h).trim().toLowerCase());
+      const idx = (name) => header.indexOf(name.toLowerCase());
+
+      const iAmt = idx("amount_eur");
+      const iLbl = idx("label");
+      const iRec = idx("recurring");
+
+      // l'export usa "dateTime" -> in header lower diventa "datetime"
+      const iDT  = idx("datetime");
+
+      if (iAmt === -1 || iLbl === -1) {
+        return alert("CSV non riconosciuto. Deve contenere almeno: amount_eur,label");
+      }
+
+      let imported = 0;
+
+      for (let r = 1; r < table.length; r++) {
+        const row = table[r];
+        if (!row || row.length === 0) continue;
+
+        const amountEur = toInt(row[iAmt]);
+        const label = String(row[iLbl] ?? "").trim();
+        const isRecurring = (iRec !== -1) ? toBool(row[iRec]) : false;
+
+        if (amountEur <= 0 || !label) continue;
+
+        let createdAt = Date.now();
+        if (iDT !== -1) {
+          const d = new Date(String(row[iDT] ?? "").trim());
+          if (!Number.isNaN(d.getTime())) createdAt = d.getTime();
+        }
+
+        const e = {
+          id: uid(),            // nuovo id (evita collisioni)
+          monthKey: MONTH_KEY,  // import nel mese corrente
+          createdAt,
+          amountEur,
+          label,
+          isRecurring
+        };
+
+        await dbPut(STORE_EXP, e);
+        imported++;
+      }
+
+      closeEISheet();
+      await refresh();
+      alert(`Import completato: ${imported} voci aggiunte al mese ${MONTH_KEY}.`);
+    } catch (err) {
+      console.error(err);
+      alert("Errore durante l'import. Controlla il formato del CSV.");
+    }
+>>>>>>> Stashed changes
   };
 
   // ---------- PWA (service worker) ----------
@@ -517,6 +615,10 @@
     await registerSW();
   })();
 })();
+<<<<<<< Updated upstream
 </script>
+=======
+  </script>
+>>>>>>> Stashed changes
 </body>
 </html>
