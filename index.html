@@ -81,6 +81,10 @@
       color:#cbd5e1;
     }
     .footer { margin: 14px 0 4px; text-align:center; color:#94a3b8; font-size: 12px; }
+
+    @media (prefers-reduced-motion: no-preference) {
+      #eiSheet, #installSheet { transition: transform .15s ease, opacity .15s ease; }
+    }
   </style>
 </head>
 
@@ -92,6 +96,7 @@
         <div class="sub">Spese del mese solare • dati locali • offline</div>
       </div>
       <div class="row">
+        <button class="btn" id="installBtn" style="display:none;">Installa</button>
         <button class="btn" id="eiBtn">Esporta/Importa</button>
       </div>
     </div>
@@ -162,7 +167,7 @@
     </div>
   </div>
 
-  <!-- Bottom sheet Export/Import (DEVE stare prima dello script) -->
+  <!-- Bottom sheet Export/Import (prima dello script) -->
   <div id="eiBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);"></div>
 
   <div id="eiSheet" style="
@@ -187,6 +192,32 @@
   </div>
 
   <input id="csvFile" type="file" accept=".csv,text/csv" style="display:none" />
+
+  <!-- Bottom sheet Install (iOS + fallback) -->
+  <div id="installBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);"></div>
+
+  <div id="installSheet" style="
+    display:none;
+    position:fixed; left:0; right:0; bottom:0;
+    background:#0f172a; border-top:1px solid #1f2a44;
+    border-radius:16px 16px 0 0;
+    padding:14px; box-shadow:0 -10px 25px rgba(0,0,0,.35);
+  ">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div style="font-weight:900;">Installa SottoSoglia</div>
+      <button class="btn" id="installClose">Chiudi</button>
+    </div>
+
+    <div class="muted" style="margin-top:12px; line-height:1.4;">
+      Su iPhone/iPad Safari l’installazione si fa così:<br><br>
+      1) Tocca <b>Condividi</b> (⬆︎)<br>
+      2) Seleziona <b>Aggiungi a schermata Home</b><br>
+    </div>
+
+    <div style="display:grid; gap:10px; margin-top:12px;">
+      <button class="btn" id="installOk">Ok</button>
+    </div>
+  </div>
 
   <script>
 (() => {
@@ -280,7 +311,7 @@
     return Number.isFinite(n) ? Math.floor(n) : 0;
   }
 
-  // ---------- IndexedDB (no libs) ----------
+  // ---------- IndexedDB ----------
   const DB_NAME = "sottosoglia_db";
   const DB_VERSION = 1;
   const STORE_EXP = "expenses";
@@ -377,6 +408,28 @@
     return String(Date.now()) + "-" + Math.random().toString(16).slice(2);
   }
 
+  // ---------- Install logic (show once) ----------
+  const LS_INSTALL_SEEN = "sottosoglia_install_seen_v1";
+  let deferredPrompt = null;
+
+  function isStandalone() {
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
+      || window.navigator.standalone === true; // iOS
+  }
+
+  function isIOS() {
+    const ua = navigator.userAgent || "";
+    return /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  }
+
+  function hasSeenInstallHint() {
+    try { return localStorage.getItem(LS_INSTALL_SEEN) === "1"; } catch { return true; }
+  }
+
+  function markSeenInstallHint() {
+    try { localStorage.setItem(LS_INSTALL_SEEN, "1"); } catch {}
+  }
+
   // ---------- App state ----------
   let settings = { monthlyLimitEur: 0 };
   let items = [];
@@ -408,6 +461,13 @@
   const doExport = $("doExport");
   const doImport = $("doImport");
   const csvFile = $("csvFile");
+
+  // Install UI
+  const installBtn = $("installBtn");
+  const installBackdrop = $("installBackdrop");
+  const installSheet = $("installSheet");
+  const installClose = $("installClose");
+  const installOk = $("installOk");
 
   const datalist = document.querySelector("#recent-labels");
 
@@ -604,7 +664,6 @@
       const iAmt = idx("amount_eur");
       const iLbl = idx("label");
       const iRec = idx("recurring");
-
       // l'export usa "dateTime" -> in header lower diventa "datetime"
       const iDT  = idx("datetime");
 
@@ -651,6 +710,84 @@
       alert("Errore durante l'import. Controlla il formato del CSV.");
     }
   };
+
+  // ---------- Install UI (show once) ----------
+  function openInstallSheet() {
+    installBackdrop.style.display = "block";
+    installSheet.style.display = "block";
+  }
+  function closeInstallSheet(markSeen = true) {
+    installBackdrop.style.display = "none";
+    installSheet.style.display = "none";
+    if (markSeen) markSeenInstallHint();
+    // dopo la prima visualizzazione, non mostrare più il pulsante
+    installBtn.style.display = "none";
+  }
+
+  installClose.onclick = () => closeInstallSheet(true);
+  installOk.onclick = () => closeInstallSheet(true);
+  installBackdrop.onclick = () => closeInstallSheet(true);
+
+  // Se l'utente ha già visto il suggerimento, non mostriamo più nulla
+  if (!hasSeenInstallHint()) {
+    // iOS: mostriamo il pulsante solo per aprire le istruzioni
+    if (isIOS() && !isStandalone()) {
+      installBtn.style.display = "inline-block";
+    }
+  }
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+
+    // Mostra solo se non è già installata e non lo ha già visto
+    if (!isStandalone() && !hasSeenInstallHint()) {
+      installBtn.style.display = "inline-block";
+    }
+  });
+
+  installBtn.onclick = async () => {
+    // già installata
+    if (isStandalone()) {
+      installBtn.style.display = "none";
+      return;
+    }
+
+    // Se già visto, non fare nulla
+    if (hasSeenInstallHint()) {
+      installBtn.style.display = "none";
+      return;
+    }
+
+    // iOS: istruzioni
+    if (isIOS() && !deferredPrompt) {
+      openInstallSheet();
+      return;
+    }
+
+    // Android/Desktop: prompt ufficiale
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+
+      // segna come visto comunque (così è "una volta")
+      markSeenInstallHint();
+      installBtn.style.display = "none";
+
+      // se rifiutata, nessun disturbo futuro (show once)
+      return;
+    }
+
+    // fallback: mostra istruzioni generiche
+    openInstallSheet();
+  };
+
+  window.addEventListener("appinstalled", () => {
+    markSeenInstallHint();
+    installBtn.style.display = "none";
+    deferredPrompt = null;
+  });
 
   // ---------- PWA (service worker) ----------
   async function registerSW() {
