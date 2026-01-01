@@ -7,12 +7,11 @@
 
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" href="./pwa-192.png" />
-  <link rel="icon" href="./pwa-512.png" />
-  <link rel="apple-touch-icon" href="./pwa-192.png" />
-  <link rel="apple-touch-icon" href="./pwa-512.png" />
-  <link rel="icon" href="./favicon.ico" />
 
+  <!-- Favicons / Icons -->
+  <link rel="icon" href="./favicon.ico" />
+  <link rel="icon" type="image/png" sizes="512x512" href="./pwa-512.png" />
+  <link rel="apple-touch-icon" href="./pwa-512.png" />
 
   <style>
     :root { color-scheme: dark; }
@@ -93,7 +92,7 @@
         <div class="sub">Spese del mese solare • dati locali • offline</div>
       </div>
       <div class="row">
-        <button class="btn" id="exportBtn">Export CSV</button>
+        <button class="btn" id="eiBtn">Esporta/Importa</button>
       </div>
     </div>
 
@@ -244,6 +243,43 @@
     return [header, ...rows].join("\n");
   }
 
+  // ---------- CSV Import helpers ----------
+  function parseCSV(text) {
+    // parser CSV semplice con supporto a virgolette
+    const rows = [];
+    let row = [];
+    let cur = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const next = text[i + 1];
+
+      if (inQuotes) {
+        if (ch === '"' && next === '"') { cur += '"'; i++; continue; }
+        if (ch === '"') { inQuotes = false; continue; }
+        cur += ch;
+      } else {
+        if (ch === '"') { inQuotes = true; continue; }
+        if (ch === ",") { row.push(cur); cur = ""; continue; }
+        if (ch === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; continue; }
+        if (ch === "\r") continue;
+        cur += ch;
+      }
+    }
+    if (cur.length || row.length) { row.push(cur); rows.push(row); }
+    return rows;
+  }
+
+  function toBool(s) {
+    return String(s).trim().toLowerCase() === "true";
+  }
+
+  function toInt(s) {
+    const n = Number(String(s).trim());
+    return Number.isFinite(n) ? Math.floor(n) : 0;
+  }
+
   // ---------- IndexedDB (no libs) ----------
   const DB_NAME = "sottosoglia_db";
   const DB_VERSION = 1;
@@ -362,8 +398,16 @@
   const listEl = $("list");
   const filterSelect = $("filterSelect");
   const searchInput = $("searchInput");
-  const exportBtn = $("exportBtn");
   const monthLabel = $("monthLabel");
+
+  // Export/Import UI
+  const eiBtn = $("eiBtn");
+  const eiBackdrop = $("eiBackdrop");
+  const eiSheet = $("eiSheet");
+  const eiClose = $("eiClose");
+  const doExport = $("doExport");
+  const doImport = $("doImport");
+  const csvFile = $("csvFile");
 
   const datalist = document.querySelector("#recent-labels");
 
@@ -520,11 +564,23 @@
     renderList();
   };
 
-  exportBtn.onclick = () => {
+  // ---------- Export/Import UI ----------
+  function openEISheet() {
+    eiBackdrop.style.display = "block";
+    eiSheet.style.display = "block";
+  }
+  function closeEISheet() {
+    eiBackdrop.style.display = "none";
+    eiSheet.style.display = "none";
+  }
+
+  eiBtn.onclick = openEISheet;
+  eiClose.onclick = closeEISheet;
+  eiBackdrop.onclick = closeEISheet;
+
+  doExport.onclick = () => {
     const csv = expensesToCSV(MONTH_KEY, items);
     downloadTextFile(`sottosoglia_spese_${MONTH_KEY}.csv`, csv);
-<<<<<<< Updated upstream
-=======
     closeEISheet();
   };
 
@@ -594,7 +650,6 @@
       console.error(err);
       alert("Errore durante l'import. Controlla il formato del CSV.");
     }
->>>>>>> Stashed changes
   };
 
   // ---------- PWA (service worker) ----------
@@ -615,14 +670,6 @@
     await registerSW();
   })();
 })();
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-</script>
-=======
   </script>
->>>>>>> Stashed changes
-=======
-  </script>
->>>>>>> Stashed changes
 </body>
 </html>
