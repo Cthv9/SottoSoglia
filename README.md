@@ -1,5 +1,5 @@
 # SottoSoglia
-Easy budget-calculator
+Easy budget-calculator | By DF
 
 **SottoSoglia** è una App semplice e leggera per tenere sotto controllo le **spese mensili**.
 
@@ -12,12 +12,12 @@ Tutti i dati restano **in locale nel browser**.
 - Spese ricorrenti o una tantum
 - Arrotondamento per eccesso all’euro
 - Totale mensile e confronto con una soglia
-- Esportazione CSV
+- Esportazione/Importazione CSV
 - Installabile come app (PWA)
 - Funziona offline
 
 ## Tecnologia
-- HTML, CSS e JavaScript puro
+- HTML, CSS e JavaScript
 - Nessun framework
 - Nessun backend
 - Nessuna build
