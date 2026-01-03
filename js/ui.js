@@ -3,45 +3,77 @@ import { STORE_EXP, STORE_SET, dbGet, dbPut, dbDelete, listExpensesByMonth, list
 import { downloadTextFile, expensesToCSV, parseCSV, toBool, toInt } from "./csv.js";
 
 export function createUI({ MONTH_KEY }) {
-  // state
+  // ---------------- State ----------------
   let settings = { monthlyLimitEur: 0 };
   let items = [];
   let filter = "all";
   let query = "";
   let editingId = null;
 
-  // Undo state
+  // End month for NEW recurring expenses
+  const END_LS_KEY = "sottosoglia_new_endmonth_v1";
+  let newRecurringEndMonth = "";
+
+  // Undo
   const UNDO_MS = 6500;
   let undoTimer = null;
-  let undoPayload = null; // { item, position? }
+  let undoPayload = null;
 
-  // refs
+  // Theme
+  const THEME_KEY = "sottosoglia_theme_v1"; // auto|light|dark
+
+  // ---------------- Refs ----------------
+  const monthPill = $("monthPill");
   const totalEurEl = $("totalEur");
   const limitEurEl = $("limitEur");
   const remainingEurEl = $("remainingEur");
   const remainingHintEl = $("remainingHint");
   const excludedInfoEl = $("excludedInfo");
-  const limitInput = $("limitInput");
-  const saveLimitBtn = $("saveLimitBtn");
-
   const barFill = $("barFill");
   const barHint = $("barHint");
 
+  const editLimitBtn = $("editLimitBtn");
+
+  const listEl = $("list");
+  const searchInput = $("searchInput");
+  const filterBtn = $("filterBtn");
+  const datalist = document.querySelector("#recent-labels");
+
+  // Add bar
   const amountInput = $("amountInput");
   const labelInput = $("labelInput");
   const recurringInput = $("recurringInput");
   const addBtn = $("addBtn");
-  const addEndMonthWrap = $("addEndMonthWrap");
-  const addEndMonth = $("addEndMonth");
+  const addHint = $("addHint");
+  const endMonthBtn = $("endMonthBtn");
+  const endMonthLabel = $("endMonthLabel");
 
-  const listEl = $("list");
-  const filterSelect = $("filterSelect");
-  const searchInput = $("searchInput");
-  const monthLabel = $("monthLabel");
-  const datalist = document.querySelector("#recent-labels");
+  // Menu
+  const menuBtn = $("menuBtn");
+  const menuBackdrop = $("menuBackdrop");
+  const menuSheet = $("menuSheet");
+  const menuClose = $("menuClose");
+  const openEIBtn = $("openEIBtn");
+  const openLimitBtn = $("openLimitBtn");
+  const themeAuto = $("themeAuto");
+  const themeLight = $("themeLight");
+  const themeDark = $("themeDark");
 
-  // export/import
-  const eiBtn = $("eiBtn");
+  // Limit sheet
+  const limitBackdrop = $("limitBackdrop");
+  const limitSheet = $("limitSheet");
+  const limitClose = $("limitClose");
+  const limitInput = $("limitInput");
+  const saveLimitBtn = $("saveLimitBtn");
+
+  // End month sheet
+  const endBackdrop = $("endBackdrop");
+  const endSheet = $("endSheet");
+  const endClose = $("endClose");
+  const endInput = $("endInput");
+  const endSave = $("endSave");
+
+  // Export/Import
   const eiBackdrop = $("eiBackdrop");
   const eiSheet = $("eiSheet");
   const eiClose = $("eiClose");
@@ -49,7 +81,23 @@ export function createUI({ MONTH_KEY }) {
   const doImport = $("doImport");
   const csvFile = $("csvFile");
 
-  // edit
+  // Filter sheet
+  const filterBackdrop = $("filterBackdrop");
+  const filterSheet = $("filterSheet");
+  const filterClose = $("filterClose");
+
+  // Row actions sheet
+  const rowBackdrop = $("rowBackdrop");
+  const rowSheet = $("rowSheet");
+  const rowClose = $("rowClose");
+  const rowMeta = $("rowMeta");
+  const rowCopy = $("rowCopy");
+  const rowToggleExcluded = $("rowToggleExcluded");
+  const rowToggleRecurring = $("rowToggleRecurring");
+  const rowDelete = $("rowDelete");
+  let rowActionId = null;
+
+  // Edit sheet
   const editBackdrop = $("editBackdrop");
   const editSheet = $("editSheet");
   const editClose = $("editClose");
@@ -62,10 +110,17 @@ export function createUI({ MONTH_KEY }) {
   const editExcluded = $("editExcluded");
   const editEndMonth = $("editEndMonth");
 
-  // toast
+  // Toast
   const toast = $("toast");
   const toastText = $("toastText");
   const toastUndo = $("toastUndo");
+
+  // ---------------- Helpers ----------------
+  function formatMonthMMYYYY(monthKey) {
+    const [y, m] = String(monthKey).split("-");
+    if (!y || !m) return "--/----";
+    return `${m}/${y}`;
+  }
 
   function sumIncluded(arr) {
     return arr.reduce((acc, e) => acc + (!e.isExcluded ? (e.amountEur || 0) : 0), 0);
@@ -74,37 +129,85 @@ export function createUI({ MONTH_KEY }) {
     return arr.reduce((acc, e) => acc + (e.isExcluded ? (e.amountEur || 0) : 0), 0);
   }
 
-  // ---------- Toast / Undo ----------
-  function hideToast() {
-    toast.style.display = "none";
+  function openSheet(backdrop, sheet) { backdrop.style.display = "block"; sheet.style.display = "block"; }
+  function closeSheet(backdrop, sheet) { backdrop.style.display = "none"; sheet.style.display = "none"; }
+
+  // ---------------- Theme ----------------
+  function systemPrefersDark() {
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  function applyTheme(mode) {
+    const html = document.documentElement;
+    if (mode === "light") html.setAttribute("data-theme", "light");
+    else if (mode === "dark") html.removeAttribute("data-theme");
+    else {
+      if (systemPrefersDark()) html.removeAttribute("data-theme");
+      else html.setAttribute("data-theme", "light");
+    }
+  }
+  function getSavedTheme() {
+    try { return localStorage.getItem(THEME_KEY) || "auto"; } catch { return "auto"; }
+  }
+  function saveTheme(mode) {
+    try { localStorage.setItem(THEME_KEY, mode); } catch {}
+    applyTheme(mode);
+  }
+  if (window.matchMedia) {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener?.("change", () => {
+      if (getSavedTheme() === "auto") applyTheme("auto");
+    });
   }
 
+  // ---------------- EndMonth for new recurring ----------------
+  function loadEndMonth() {
+    try { newRecurringEndMonth = localStorage.getItem(END_LS_KEY) || ""; } catch { newRecurringEndMonth = ""; }
+    newRecurringEndMonth = normalizeEndMonth(newRecurringEndMonth) || "";
+  }
+  function saveEndMonth(v) {
+    newRecurringEndMonth = normalizeEndMonth(v) || "";
+    try { localStorage.setItem(END_LS_KEY, newRecurringEndMonth); } catch {}
+    renderAddHint();
+  }
+
+  function renderAddHint() {
+    const on = !!recurringInput.checked;
+    endMonthBtn.disabled = !on;
+
+    if (!on) {
+      endMonthLabel.textContent = "—";
+      addHint.textContent = "Ricorrente: OFF";
+      return;
+    }
+
+    endMonthLabel.textContent = newRecurringEndMonth ? newRecurringEndMonth : "—";
+    addHint.textContent = newRecurringEndMonth
+      ? `Ricorrente: ON • fine ${newRecurringEndMonth}`
+      : "Ricorrente: ON • fine non impostata";
+  }
+
+  // ---------------- Undo / Toast ----------------
+  function hideToast() { toast.style.display = "none"; }
   function showToast(message) {
     toastText.textContent = message;
     toast.style.display = "flex";
   }
-
   function clearUndo() {
     undoPayload = null;
     if (undoTimer) clearTimeout(undoTimer);
     undoTimer = null;
     hideToast();
   }
-
   async function applyUndo() {
     if (!undoPayload) return;
     const { item } = undoPayload;
-    // Re-inserisce l'elemento con lo stesso id (ripristino)
     await dbPut(STORE_EXP, item);
     clearUndo();
     await refresh();
   }
+  toastUndo.onclick = () => { applyUndo().catch(console.error); };
 
-  toastUndo.onclick = () => {
-    applyUndo().catch(console.error);
-  };
-
-  // ---------- Render ----------
+  // ---------------- KPI Render ----------------
   function renderKPIs() {
     const limit = Number(settings.monthlyLimitEur) || 0;
     const totalIncluded = sumIncluded(items);
@@ -113,6 +216,7 @@ export function createUI({ MONTH_KEY }) {
 
     totalEurEl.textContent = `€ ${totalIncluded}`;
     limitEurEl.textContent = `€ ${limit}`;
+
     remainingEurEl.textContent = `€ ${remaining}`;
     remainingEurEl.style.color = (limit > 0 && remaining < 0) ? "#ef4444" : "";
 
@@ -140,9 +244,10 @@ export function createUI({ MONTH_KEY }) {
       excludedInfoEl.textContent = "";
     }
 
-    monthLabel.textContent = `Mese: ${MONTH_KEY}`;
+    monthPill.textContent = formatMonthMMYYYY(MONTH_KEY);
   }
 
+  // ---------------- Filters ----------------
   function passesFilters(e) {
     if (filter === "recurring" && !e.isRecurring) return false;
     if (filter === "once" && e.isRecurring) return false;
@@ -156,39 +261,47 @@ export function createUI({ MONTH_KEY }) {
     return true;
   }
 
+  // ---------------- Data helpers ----------------
   async function duplicateItem(e) {
     const { uid } = await import("./utils.js");
-    const copy = {
-      ...e,
-      id: uid(),
-      createdAt: Date.now(),
-      monthKey: MONTH_KEY
-    };
+    const copy = { ...e, id: uid(), createdAt: Date.now(), monthKey: MONTH_KEY };
     await dbPut(STORE_EXP, copy);
     await refresh();
   }
 
   async function deleteWithUndo(e) {
-    // se c'è un undo attivo, lo “finalizziamo” (niente ripristino)
     clearUndo();
-
-    // salva snapshot per undo
     undoPayload = { item: { ...e } };
-
-    // elimina
     await dbDelete(STORE_EXP, e.id);
-
-    // refresh UI
     await refresh();
-
-    // mostra toast
     showToast("Voce eliminata.");
-    undoTimer = setTimeout(() => {
-      // scaduto: semplicemente puliamo lo stato
-      clearUndo();
-    }, UNDO_MS);
+    undoTimer = setTimeout(() => { clearUndo(); }, UNDO_MS);
   }
 
+  function renderDatalist(labels) {
+    datalist.innerHTML = "";
+    for (const l of labels) {
+      const opt = document.createElement("option");
+      opt.value = l;
+      datalist.appendChild(opt);
+    }
+  }
+
+  // ---------------- Row actions ----------------
+  function openRowActions(id) {
+    rowActionId = id;
+    const e = items.find(x => x.id === id);
+    if (!e) return;
+
+    rowMeta.textContent = `€ ${e.amountEur} • ${e.label}${e.isRecurring ? " • Ricorrente" : ""}${e.isExcluded ? " • Esclusa" : ""}`;
+    openSheet(rowBackdrop, rowSheet);
+  }
+  function closeRowActions() {
+    rowActionId = null;
+    closeSheet(rowBackdrop, rowSheet);
+  }
+
+  // ---------------- List render ----------------
   function renderList() {
     listEl.innerHTML = "";
     const visible = items.filter(passesFilters);
@@ -217,8 +330,8 @@ export function createUI({ MONTH_KEY }) {
       left.style.gap = "6px";
 
       const main = document.createElement("div");
-      main.style.fontWeight = "900";
-      main.style.opacity = e.isExcluded ? "0.75" : "1";
+      main.style.fontWeight = "950";
+      main.style.opacity = e.isExcluded ? "0.78" : "1";
       main.innerHTML = `€ ${e.amountEur} <span class="tag">• ${escapeHtml(e.label)}</span>`;
       left.appendChild(main);
 
@@ -253,56 +366,18 @@ export function createUI({ MONTH_KEY }) {
       left.appendChild(metaWrap);
 
       const right = document.createElement("div");
-      right.className = "row";
+      right.className = "itemRight";
 
-      // Escludi / includi
-      const exc = document.createElement("button");
-      exc.className = "btn";
-      exc.textContent = e.isExcluded ? "✓" : "Ø";
-      exc.title = e.isExcluded ? "Includi nel totale" : "Escludi dal totale";
-      exc.onclick = async (ev) => {
+      const kebab = document.createElement("button");
+      kebab.className = "rowKebab";
+      kebab.textContent = "⋯";
+      kebab.title = "Azioni";
+      kebab.onclick = (ev) => {
         ev.stopPropagation();
-        e.isExcluded = !e.isExcluded;
-        await dbPut(STORE_EXP, e);
-        await refresh();
+        openRowActions(e.id);
       };
 
-      // Ricorrente toggle
-      const tog = document.createElement("button");
-      tog.className = "btn";
-      tog.textContent = e.isRecurring ? "↺" : "1×";
-      tog.title = "Cambia ricorrente/una tantum";
-      tog.onclick = async (ev) => {
-        ev.stopPropagation();
-        e.isRecurring = !e.isRecurring;
-        if (!e.isRecurring) e.endMonth = "";
-        await dbPut(STORE_EXP, e);
-        await refresh();
-      };
-
-      // DUPLICA (nuovo)
-      const dup = document.createElement("button");
-      dup.className = "btn";
-      dup.textContent = "Copia";
-      dup.title = "Duplica questa voce";
-      dup.onclick = async (ev) => {
-        ev.stopPropagation();
-        await duplicateItem(e);
-      };
-
-      // Elimina con undo
-      const del = document.createElement("button");
-      del.className = "btn btnDanger";
-      del.textContent = "Elimina";
-      del.onclick = async (ev) => {
-        ev.stopPropagation();
-        await deleteWithUndo(e);
-      };
-
-      right.appendChild(exc);
-      right.appendChild(tog);
-      right.appendChild(dup);
-      right.appendChild(del);
+      right.appendChild(kebab);
 
       row.appendChild(left);
       row.appendChild(right);
@@ -310,25 +385,7 @@ export function createUI({ MONTH_KEY }) {
     }
   }
 
-  function renderDatalist(labels) {
-    datalist.innerHTML = "";
-    for (const l of labels) {
-      const opt = document.createElement("option");
-      opt.value = l;
-      datalist.appendChild(opt);
-    }
-  }
-
-  // sheets
-  function openSheet(backdrop, sheet) { backdrop.style.display = "block"; sheet.style.display = "block"; }
-  function closeSheet(backdrop, sheet) { backdrop.style.display = "none"; sheet.style.display = "none"; }
-
-  function openEISheet() { openSheet(eiBackdrop, eiSheet); }
-  function closeEISheet() { closeSheet(eiBackdrop, eiSheet); }
-
-  function openEditSheet() { openSheet(editBackdrop, editSheet); }
-  function closeEditSheet() { closeSheet(editBackdrop, editSheet); editingId = null; }
-
+  // ---------------- Edit sheet ----------------
   function openEdit(id) {
     const e = items.find(x => x.id === id);
     if (!e) return;
@@ -343,18 +400,14 @@ export function createUI({ MONTH_KEY }) {
     editEndMonth.disabled = !editRecurring.checked;
     if (!editRecurring.checked) editEndMonth.value = "";
 
-    openEditSheet();
+    openSheet(editBackdrop, editSheet);
+  }
+  function closeEditSheet() {
+    editingId = null;
+    closeSheet(editBackdrop, editSheet);
   }
 
-  // add endMonth UI
-  function syncAddEndMonthUI() {
-    const on = !!recurringInput.checked;
-    addEndMonthWrap.style.display = on ? "block" : "none";
-    addEndMonth.disabled = !on;
-    if (!on) addEndMonth.value = "";
-  }
-
-  // public API
+  // ---------------- Public API ----------------
   async function refresh() {
     settings = (await dbGet(STORE_SET, "main")) || { monthlyLimitEur: 0 };
     items = await listExpensesByMonth(MONTH_KEY);
@@ -367,35 +420,102 @@ export function createUI({ MONTH_KEY }) {
     renderKPIs();
     renderList();
     renderDatalist(await listRecentLabels());
+
+    limitInput.value = String(settings.monthlyLimitEur || 0);
+    renderAddHint();
   }
 
   function bind() {
-    // settings
+    // init theme + endMonth
+    applyTheme(getSavedTheme());
+    loadEndMonth();
+
+    monthPill.textContent = formatMonthMMYYYY(MONTH_KEY);
+
+    // search
+    searchInput.oninput = () => {
+      query = searchInput.value;
+      renderList();
+    };
+
+    // filter sheet
+    filterBtn.onclick = () => openSheet(filterBackdrop, filterSheet);
+    filterClose.onclick = () => closeSheet(filterBackdrop, filterSheet);
+    filterBackdrop.onclick = () => closeSheet(filterBackdrop, filterSheet);
+
+    filterSheet.querySelectorAll("[data-filter]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        filter = btn.getAttribute("data-filter");
+        closeSheet(filterBackdrop, filterSheet);
+        renderList();
+      });
+    });
+
+    // menu
+    menuBtn.onclick = () => openSheet(menuBackdrop, menuSheet);
+    menuClose.onclick = () => closeSheet(menuBackdrop, menuSheet);
+    menuBackdrop.onclick = () => closeSheet(menuBackdrop, menuSheet);
+
+    openEIBtn.onclick = () => {
+      closeSheet(menuBackdrop, menuSheet);
+      openSheet(eiBackdrop, eiSheet);
+    };
+
+    function openLimitSheet() {
+      closeSheet(menuBackdrop, menuSheet);
+      limitInput.value = String(settings.monthlyLimitEur || 0);
+      openSheet(limitBackdrop, limitSheet);
+      limitInput.focus();
+    }
+    openLimitBtn.onclick = openLimitSheet;
+    editLimitBtn.onclick = openLimitSheet;
+
+    themeAuto.onclick = () => saveTheme("auto");
+    themeLight.onclick = () => saveTheme("light");
+    themeDark.onclick = () => saveTheme("dark");
+
+    // limit sheet
+    limitClose.onclick = () => closeSheet(limitBackdrop, limitSheet);
+    limitBackdrop.onclick = () => closeSheet(limitBackdrop, limitSheet);
+
     saveLimitBtn.onclick = async () => {
       const digits = String(limitInput.value || "").replace(/[^\d]/g, "");
       const n = digits ? Math.floor(Number(digits)) : 0;
       settings.monthlyLimitEur = Math.max(0, Number.isFinite(n) ? n : 0);
       await dbPut(STORE_SET, settings, "main");
+      closeSheet(limitBackdrop, limitSheet);
       await refresh();
     };
 
+    // add recurring end month sheet (only when recurring ON)
+    endMonthBtn.onclick = () => {
+      if (endMonthBtn.disabled) return;
+      endInput.value = newRecurringEndMonth || "";
+      openSheet(endBackdrop, endSheet);
+      endInput.focus();
+    };
+    endClose.onclick = () => closeSheet(endBackdrop, endSheet);
+    endBackdrop.onclick = () => closeSheet(endBackdrop, endSheet);
+    endSave.onclick = () => {
+      const raw = String(endInput.value || "").trim();
+      if (raw && !normalizeEndMonth(raw)) return alert("Formato non valido. Usa YYYY-MM (es. 2027-03).");
+      saveEndMonth(raw);
+      closeSheet(endBackdrop, endSheet);
+    };
+
     // add
-    recurringInput.onchange = syncAddEndMonthUI;
+    recurringInput.onchange = renderAddHint;
 
     addBtn.onclick = async () => {
-      const { parseAmount, roundUpToEuro, uid, normalizeEndMonth } = await import("./utils.js");
+      const { parseAmount, roundUpToEuro, uid } = await import("./utils.js");
       const parsed = parseAmount(amountInput.value);
       const label = String(labelInput.value || "").trim();
+
       if (parsed === null || parsed <= 0) return alert("Inserisci un importo valido (> 0).");
       if (!label) return alert("Inserisci un tag/descrizione.");
 
       const isRecurring = !!recurringInput.checked;
-      const rawEnd = isRecurring ? String(addEndMonth.value || "").trim() : "";
-      const endMonth = isRecurring ? normalizeEndMonth(rawEnd) : "";
-
-      if (isRecurring && rawEnd && !endMonth) {
-        return alert("Fine ricorrenza non valida. Usa il formato YYYY-MM (es. 2027-03).");
-      }
+      const endMonth = isRecurring ? (normalizeEndMonth(newRecurringEndMonth) || "") : "";
 
       const e = {
         id: uid(),
@@ -413,25 +533,20 @@ export function createUI({ MONTH_KEY }) {
       amountInput.value = "";
       labelInput.value = "";
       recurringInput.checked = false;
-      addEndMonth.value = "";
-      syncAddEndMonthUI();
+      renderAddHint();
 
       await refresh();
+      amountInput.focus();
     };
 
-    // filters
-    filterSelect.onchange = () => { filter = filterSelect.value; renderList(); };
-    searchInput.oninput = () => { query = searchInput.value; renderList(); };
-
     // export/import
-    eiBtn.onclick = openEISheet;
-    eiClose.onclick = closeEISheet;
-    eiBackdrop.onclick = closeEISheet;
+    eiClose.onclick = () => closeSheet(eiBackdrop, eiSheet);
+    eiBackdrop.onclick = () => closeSheet(eiBackdrop, eiSheet);
 
     doExport.onclick = () => {
       const csv = expensesToCSV(MONTH_KEY, items);
       downloadTextFile(`sottosoglia_spese_${MONTH_KEY}.csv`, csv);
-      closeEISheet();
+      closeSheet(eiBackdrop, eiSheet);
     };
 
     doImport.onclick = () => { csvFile.value = ""; csvFile.click(); };
@@ -459,7 +574,7 @@ export function createUI({ MONTH_KEY }) {
           return alert("CSV non riconosciuto. Deve contenere almeno: amount_eur,label");
         }
 
-        const { normalizeEndMonth, uid } = await import("./utils.js");
+        const { uid } = await import("./utils.js");
 
         let imported = 0;
         for (let r = 1; r < table.length; r++) {
@@ -495,13 +610,50 @@ export function createUI({ MONTH_KEY }) {
           imported++;
         }
 
-        closeEISheet();
+        closeSheet(eiBackdrop, eiSheet);
         await refresh();
-        alert(`Import completato: ${imported} voci aggiunte al mese ${MONTH_KEY}.`);
+        alert(`Import completato: ${imported} voci aggiunte al mese ${formatMonthMMYYYY(MONTH_KEY)}.`);
       } catch (err) {
         console.error(err);
         alert("Errore durante l'import. Controlla il formato del CSV.");
       }
+    };
+
+    // row actions
+    rowClose.onclick = closeRowActions;
+    rowBackdrop.onclick = closeRowActions;
+
+    rowCopy.onclick = async () => {
+      const e = items.find(x => x.id === rowActionId);
+      if (!e) return;
+      await duplicateItem(e);
+      closeRowActions();
+    };
+
+    rowToggleExcluded.onclick = async () => {
+      const e = items.find(x => x.id === rowActionId);
+      if (!e) return;
+      e.isExcluded = !e.isExcluded;
+      await dbPut(STORE_EXP, e);
+      await refresh();
+      rowMeta.textContent = `€ ${e.amountEur} • ${e.label}${e.isRecurring ? " • Ricorrente" : ""}${e.isExcluded ? " • Esclusa" : ""}`;
+    };
+
+    rowToggleRecurring.onclick = async () => {
+      const e = items.find(x => x.id === rowActionId);
+      if (!e) return;
+      e.isRecurring = !e.isRecurring;
+      if (!e.isRecurring) e.endMonth = "";
+      await dbPut(STORE_EXP, e);
+      await refresh();
+      rowMeta.textContent = `€ ${e.amountEur} • ${e.label}${e.isRecurring ? " • Ricorrente" : ""}${e.isExcluded ? " • Esclusa" : ""}`;
+    };
+
+    rowDelete.onclick = async () => {
+      const e = items.find(x => x.id === rowActionId);
+      if (!e) return;
+      closeRowActions();
+      await deleteWithUndo(e);
     };
 
     // edit
@@ -517,7 +669,7 @@ export function createUI({ MONTH_KEY }) {
     editSave.onclick = async () => {
       if (!editingId) return;
 
-      const { parseAmount, roundUpToEuro, normalizeEndMonth } = await import("./utils.js");
+      const { parseAmount, roundUpToEuro } = await import("./utils.js");
       const parsed = parseAmount(editAmount.value);
       const label = String(editLabel.value || "").trim();
       if (parsed === null || parsed <= 0) return alert("Inserisci un importo valido (> 0).");
@@ -546,20 +698,14 @@ export function createUI({ MONTH_KEY }) {
       if (!editingId) return;
       const e = items.find(x => x.id === editingId);
       if (!e) return;
-
-      // cancellazione dal foglio: chiudiamo e usiamo undo
       closeEditSheet();
       await deleteWithUndo(e);
     };
 
-    // init UI state
-    syncAddEndMonthUI();
+    // toast init
     hideToast();
+    renderAddHint();
   }
 
-  return {
-    bind,
-    refresh,
-    setInitialLimitValue: (v) => { limitInput.value = String(v || 0); }
-  };
+  return { bind, refresh };
 }

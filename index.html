@@ -16,96 +16,158 @@
 </head>
 
 <body>
-  <div class="wrap">
-    <div class="top">
-      <div>
-        <div class="title">SottoSoglia</div>
-        <div class="sub">Spese del mese solare • dati locali • offline</div>
+  <!-- Sticky Top Bar (ONLY) -->
+  <header class="topbar">
+    <div class="topbarInner">
+      <div class="topbarLeft">
+        <div class="appTitle">SottoSoglia</div>
+        <div class="appSub">La tua web app per la contabilità di casa • dati locali • offline • By DF</div>
       </div>
-      <div class="row">
-        <button class="btn" id="installBtn" style="display:none;">Installa</button>
-        <button class="btn" id="eiBtn">Esporta/Importa</button>
+
+      <div class="topbarRight">
+        <div class="monthPill" id="monthPill">--/----</div>
+        <button class="iconBtn" id="installBtn" style="display:none;" aria-label="Installa">⬇︎</button>
+        <button class="iconBtn" id="menuBtn" aria-label="Menu">⋯</button>
       </div>
     </div>
+  </header>
 
-    <div class="card">
-      <div class="rowBetween">
+  <main class="wrap">
+    <!-- HERO KPI (not sticky) -->
+    <section class="heroCard">
+      <div class="heroRow">
         <div>
-          <div class="kpiLabel">Totale spese (mese)</div>
+          <div class="kpiLabel">Totale (mese)</div>
           <div class="kpiValue" id="totalEur">€ 0</div>
-          <div class="muted" id="excludedInfo" style="margin-top:6px; display:none;"></div>
+          <div class="kpiSmall" id="excludedInfo" style="display:none;"></div>
         </div>
         <div style="text-align:right">
-          <div class="kpiLabel">Soglia (entrata tipica)</div>
+          <div class="kpiLabel">Soglia</div>
           <div class="kpiValue" id="limitEur">€ 0</div>
+        </div>
+      </div>
+
+      <div class="heroRow" style="margin-top:10px;">
+        <div>
+          <div class="kpiLabel">Residuo</div>
+          <div class="kpiValue" id="remainingEur">€ 0</div>
+          <div class="kpiHint" id="remainingHint"></div>
+        </div>
+
+        <div class="heroActions">
+          <button class="btn" id="editLimitBtn">Modifica soglia</button>
         </div>
       </div>
 
       <div class="bar" aria-label="Progresso rispetto alla soglia">
         <div class="barFill" id="barFill"></div>
       </div>
-      <div class="muted" id="barHint"></div>
+      <div class="kpiHint" id="barHint"></div>
 
-      <div class="rowBetween" style="margin-top:12px">
-        <div>
-          <div class="kpiLabel">Residuo</div>
-          <div class="kpiValue" id="remainingEur">€ 0</div>
-          <div class="muted" id="remainingHint"></div>
-        </div>
-
-        <div class="row">
-          <input id="limitInput" inputmode="numeric" placeholder="Soglia in euro (es. 1800)" />
-          <button class="btn" id="saveLimitBtn">Salva</button>
-        </div>
-      </div>
-
-      <div class="muted">
+      <div class="kpiFoot">
         Regola: importi arrotondati <b>per eccesso</b> all’euro (12,10 → 13).
       </div>
-    </div>
+    </section>
 
-    <div class="card">
-      <div style="font-weight:900">Aggiungi spesa</div>
-      <div class="grid2" style="margin-top:10px">
-        <input id="amountInput" inputmode="decimal" placeholder="Importo (es. 12,50)" />
-        <input id="labelInput" placeholder="Tag / descrizione (es. benzina)" list="recent-labels" />
-        <datalist id="recent-labels"></datalist>
-      </div>
-
-      <div class="rowBetween" style="margin-top:10px">
-        <label class="row" style="gap:8px; user-select:none;">
-          <input type="checkbox" id="recurringInput" />
-          <span>Ricorrente</span>
-        </label>
-        <button class="btn" id="addBtn" style="flex:1">Aggiungi</button>
-      </div>
-
-      <div id="addEndMonthWrap" style="display:none; margin-top:10px;">
-        <input id="addEndMonth" placeholder="Fine ricorrenza (YYYY-MM) es. 2027-03" />
-        <div class="muted">Opzionale: in lista vedrai <b>*mesi rimanenti</b>.</div>
-      </div>
-
-      <div class="muted">Suggerimento: scrivi il tag sempre uguale (“Affitto”, “Benzina”) per filtrare meglio.</div>
-    </div>
-
-    <div class="card">
+    <!-- LIST -->
+    <section class="card" style="margin-top:12px;">
       <div class="rowBetween">
-        <div style="font-weight:900">Voci del mese</div>
+        <div style="font-weight:950">Voci</div>
         <div class="row">
-          <select id="filterSelect">
-            <option value="all">Tutte</option>
-            <option value="recurring">Ricorrenti</option>
-            <option value="once">Una tantum</option>
-            <option value="excluded">Escluse</option>
-            <option value="included">Conteggiate</option>
-          </select>
           <input id="searchInput" placeholder="Cerca tag…" />
+          <button class="btn" id="filterBtn">Filtro</button>
         </div>
       </div>
 
       <div class="list" id="list"></div>
-      <div class="footer" id="monthLabel"></div>
-      <div class="muted" style="margin-top:8px;">Suggerimento: tocca una voce per modificarla.</div>
+      <div class="muted" style="margin-top:10px;">Suggerimento: tap su una voce per modificare.</div>
+    </section>
+  </main>
+
+  <!-- Add bar fixed bottom -->
+  <footer class="addBar">
+    <div class="addInner">
+      <div class="addGrid">
+        <input id="amountInput" inputmode="decimal" placeholder="Importo" />
+        <input id="labelInput" placeholder="Tag (es. benzina)" list="recent-labels" />
+        <datalist id="recent-labels"></datalist>
+
+        <label class="chipToggle" title="Ricorrente">
+          <input type="checkbox" id="recurringInput" />
+          <span>↺</span>
+        </label>
+
+        <button class="addBtn" id="addBtn" aria-label="Aggiungi">＋</button>
+      </div>
+
+      <div class="addRow2">
+        <button class="pillBtn" id="endMonthBtn" disabled>
+          Fine: <span id="endMonthLabel">—</span>
+        </button>
+        <div class="addHint" id="addHint">Ricorrente: OFF</div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Global Menu Sheet (⋯) -->
+  <div id="menuBackdrop" class="backdrop"></div>
+  <div id="menuSheet" class="sheet">
+    <div class="rowBetween">
+      <div class="sheetTitle">Menu</div>
+      <button class="btn" id="menuClose">Chiudi</button>
+    </div>
+
+    <div class="sheetGroup" style="margin-top:12px;">
+      <button class="btn" id="openEIBtn">Esporta / Importa</button>
+      <button class="btn" id="openLimitBtn">Modifica soglia</button>
+    </div>
+
+    <div class="sheetGroup">
+      <div class="muted" style="margin:8px 0 6px;">Tema</div>
+      <div class="row" style="gap:8px;">
+        <button class="btn" id="themeAuto">Auto</button>
+        <button class="btn" id="themeLight">Chiaro</button>
+        <button class="btn" id="themeDark">Scuro</button>
+      </div>
+      <div class="muted">Auto segue il tema del dispositivo.</div>
+    </div>
+
+    <div class="sheetGroup">
+      <div class="muted">SottoSoglia • PWA locale</div>
+    </div>
+  </div>
+
+  <!-- Limit Sheet -->
+  <div id="limitBackdrop" class="backdrop"></div>
+  <div id="limitSheet" class="sheet">
+    <div class="rowBetween">
+      <div class="sheetTitle">Soglia</div>
+      <button class="btn" id="limitClose">Chiudi</button>
+    </div>
+
+    <div style="display:grid; gap:10px; margin-top:12px;">
+      <input id="limitInput" inputmode="numeric" placeholder="Soglia in euro (es. 1800)" />
+      <button class="btn" id="saveLimitBtn">Salva</button>
+      <div class="muted">Suggerimento: inserisci l’entrata tipica mensile.</div>
+    </div>
+  </div>
+
+  <!-- End month sheet (for NEW recurring expenses) -->
+  <div id="endBackdrop" class="backdrop"></div>
+  <div id="endSheet" class="sheet">
+    <div class="rowBetween">
+      <div class="sheetTitle">Fine ricorrenza</div>
+      <button class="btn" id="endClose">Chiudi</button>
+    </div>
+
+    <div class="muted" style="margin-top:10px;">
+      Inserisci <b>YYYY-MM</b> (es. 2027-03). In lista vedrai <b>*mesi rimanenti</b>.
+      Lascia vuoto per “nessuna fine”.
+    </div>
+
+    <div style="display:grid; gap:10px; margin-top:12px;">
+      <input id="endInput" placeholder="YYYY-MM (opzionale)" />
+      <button class="btn" id="endSave">Salva</button>
     </div>
   </div>
 
@@ -125,6 +187,45 @@
     </div>
   </div>
   <input id="csvFile" type="file" accept=".csv,text/csv" style="display:none" />
+
+  <!-- Filter sheet -->
+  <div id="filterBackdrop" class="backdrop"></div>
+  <div id="filterSheet" class="sheet">
+    <div class="rowBetween">
+      <div class="sheetTitle">Filtro</div>
+      <button class="btn" id="filterClose">Chiudi</button>
+    </div>
+
+    <div style="display:grid; gap:10px; margin-top:12px;">
+      <button class="btn" data-filter="all">Tutte</button>
+      <button class="btn" data-filter="recurring">Ricorrenti</button>
+      <button class="btn" data-filter="once">Una tantum</button>
+      <button class="btn" data-filter="included">Conteggiate</button>
+      <button class="btn" data-filter="excluded">Escluse</button>
+    </div>
+  </div>
+
+  <!-- Row Actions sheet -->
+  <div id="rowBackdrop" class="backdrop"></div>
+  <div id="rowSheet" class="sheet">
+    <div class="rowBetween">
+      <div class="sheetTitle">Azioni</div>
+      <button class="btn" id="rowClose">Chiudi</button>
+    </div>
+
+    <div class="muted" id="rowMeta" style="margin-top:10px;"></div>
+
+    <div style="display:grid; gap:10px; margin-top:12px;">
+      <button class="btn" id="rowCopy">Copia</button>
+      <button class="btn" id="rowToggleExcluded">Escludi / Includi</button>
+      <button class="btn" id="rowToggleRecurring">Ricorrente / Una tantum</button>
+      <button class="btn btnDanger" id="rowDelete">Elimina</button>
+    </div>
+
+    <div class="muted" style="margin-top:10px;">
+      Tip: tap sulla riga per modificare importo/tag e fine ricorrenza.
+    </div>
+  </div>
 
   <!-- Edit -->
   <div id="editBackdrop" class="backdrop"></div>

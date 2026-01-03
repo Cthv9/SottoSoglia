@@ -22,3 +22,4 @@ coverage/
 # Env
 .env
 .env.*
+v1.html
