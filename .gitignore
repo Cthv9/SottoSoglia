@@ -1,0 +1,23 @@
+# OS / editor / backup
+.DS_Store
+Thumbs.db
+desktop.ini
+v0.html
+
+# VS Code (facoltativo)
+.vscode/
+*.code-workspace
+
+# Logs
+*.log
+
+# Node / build (nel caso finiscano dentro per errore)
+node_modules/
+dist/
+build/
+coverage/
+.cache/
+
+# Env
+.env
+.env.*
