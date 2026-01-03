@@ -79,10 +79,13 @@
       border-radius: 999px;
       border: 1px solid #334155;
       color:#cbd5e1;
+      width: fit-content;
     }
+    .pillWarn { border-color:#334155; color:#fbbf24; }
     .footer { margin: 14px 0 4px; text-align:center; color:#94a3b8; font-size: 12px; }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="top">
@@ -91,6 +94,7 @@
         <div class="sub">Spese del mese solare • dati locali • offline</div>
       </div>
       <div class="row">
+        <button class="btn" id="installBtn" style="display:none;">Installa</button>
         <button class="btn" id="eiBtn">Esporta/Importa</button>
       </div>
     </div>
@@ -100,6 +104,7 @@
         <div>
           <div class="kpiLabel">Totale spese (mese)</div>
           <div class="kpiValue" id="totalEur">€ 0</div>
+          <div class="muted" id="excludedInfo" style="margin-top:6px; display:none;"></div>
         </div>
         <div style="text-align:right">
           <div class="kpiLabel">Soglia (entrata tipica)</div>
@@ -151,6 +156,8 @@
             <option value="all">Tutte</option>
             <option value="recurring">Ricorrenti</option>
             <option value="once">Una tantum</option>
+            <option value="excluded">Escluse</option>
+            <option value="included">Conteggiate</option>
           </select>
           <input id="searchInput" placeholder="Cerca tag…" />
         </div>
@@ -161,7 +168,59 @@
     </div>
   </div>
 
-<script>
+  <!-- Bottom sheet Export/Import (prima dello script) -->
+  <div id="eiBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);"></div>
+
+  <div id="eiSheet" style="
+    display:none;
+    position:fixed; left:0; right:0; bottom:0;
+    background:#0f172a; border-top:1px solid #1f2a44;
+    border-radius:16px 16px 0 0;
+    padding:14px; box-shadow:0 -10px 25px rgba(0,0,0,.35);
+  ">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div style="font-weight:900;">Esporta / Importa</div>
+      <button class="btn" id="eiClose">Chiudi</button>
+    </div>
+
+    <div style="display:grid; gap:10px; margin-top:12px;">
+      <button class="btn" id="doExport">Esporta CSV (mese corrente)</button>
+      <button class="btn" id="doImport">Importa CSV</button>
+      <div class="muted">
+        Importa aggiunge voci al <b>mese corrente</b>. Supporta anche la colonna <b>excluded</b> (spese non conteggiate).
+      </div>
+    </div>
+  </div>
+
+  <input id="csvFile" type="file" accept=".csv,text/csv" style="display:none" />
+
+  <!-- Bottom sheet Install (iOS + fallback) -->
+  <div id="installBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);"></div>
+
+  <div id="installSheet" style="
+    display:none;
+    position:fixed; left:0; right:0; bottom:0;
+    background:#0f172a; border-top:1px solid #1f2a44;
+    border-radius:16px 16px 0 0;
+    padding:14px; box-shadow:0 -10px 25px rgba(0,0,0,.35);
+  ">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div style="font-weight:900;">Installa SottoSoglia</div>
+      <button class="btn" id="installClose">Chiudi</button>
+    </div>
+
+    <div class="muted" style="margin-top:12px; line-height:1.4;">
+      Su iPhone/iPad Safari l’installazione si fa così:<br><br>
+      1) Tocca <b>Condividi</b> (⬆︎)<br>
+      2) Seleziona <b>Aggiungi a schermata Home</b><br>
+    </div>
+
+    <div style="display:grid; gap:10px; margin-top:12px;">
+      <button class="btn" id="installOk">Ok</button>
+    </div>
+  </div>
+
+  <script>
 (() => {
   // ---------- Utilities ----------
   const $ = (id) => document.getElementById(id);
@@ -202,7 +261,7 @@
   }
 
   function expensesToCSV(monthKey, items) {
-    const header = ["month", "dateTime", "amount_eur", "label", "recurring"].join(",");
+    const header = ["month", "dateTime", "amount_eur", "label", "recurring", "excluded"].join(",");
     const rows = items.map(e => {
       const dt = new Date(e.createdAt).toISOString();
       return [
@@ -210,7 +269,8 @@
         csvEscape(dt),
         String(e.amountEur),
         csvEscape(e.label),
-        e.isRecurring ? "true" : "false"
+        e.isRecurring ? "true" : "false",
+        e.isExcluded ? "true" : "false"
       ].join(",");
     });
     return [header, ...rows].join("\n");
@@ -218,7 +278,6 @@
 
   // ---------- CSV Import helpers ----------
   function parseCSV(text) {
-    // parser CSV semplice con supporto a virgolette
     const rows = [];
     let row = [];
     let cur = "";
@@ -253,7 +312,7 @@
     return Number.isFinite(n) ? Math.floor(n) : 0;
   }
 
-  // ---------- IndexedDB (no libs) ----------
+  // ---------- IndexedDB ----------
   const DB_NAME = "sottosoglia_db";
   const DB_VERSION = 1;
   const STORE_EXP = "expenses";
@@ -350,6 +409,28 @@
     return String(Date.now()) + "-" + Math.random().toString(16).slice(2);
   }
 
+  // ---------- Install logic (show once) ----------
+  const LS_INSTALL_SEEN = "sottosoglia_install_seen_v1";
+  let deferredPrompt = null;
+
+  function isStandalone() {
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
+      || window.navigator.standalone === true; // iOS
+  }
+
+  function isIOS() {
+    const ua = navigator.userAgent || "";
+    return /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  }
+
+  function hasSeenInstallHint() {
+    try { return localStorage.getItem(LS_INSTALL_SEEN) === "1"; } catch { return true; }
+  }
+
+  function markSeenInstallHint() {
+    try { localStorage.setItem(LS_INSTALL_SEEN, "1"); } catch {}
+  }
+
   // ---------- App state ----------
   let settings = { monthlyLimitEur: 0 };
   let items = [];
@@ -360,6 +441,7 @@
   const totalEurEl = $("totalEur");
   const limitEurEl = $("limitEur");
   const remainingEurEl = $("remainingEur");
+  const excludedInfoEl = $("excludedInfo");
   const limitInput = $("limitInput");
   const saveLimitBtn = $("saveLimitBtn");
 
@@ -382,24 +464,51 @@
   const doImport = $("doImport");
   const csvFile = $("csvFile");
 
+  // Install UI
+  const installBtn = $("installBtn");
+  const installBackdrop = $("installBackdrop");
+  const installSheet = $("installSheet");
+  const installClose = $("installClose");
+  const installOk = $("installOk");
+
   const datalist = document.querySelector("#recent-labels");
 
   // ---------- Render ----------
+  function sumIncluded(arr) {
+    return arr.reduce((acc, e) => acc + (!e.isExcluded ? (e.amountEur || 0) : 0), 0);
+  }
+  function sumExcluded(arr) {
+    return arr.reduce((acc, e) => acc + (e.isExcluded ? (e.amountEur || 0) : 0), 0);
+  }
+
   function renderKPIs() {
     const limit = Number(settings.monthlyLimitEur) || 0;
-    const total = items.reduce((acc, e) => acc + (e.amountEur || 0), 0);
-    const remaining = limit - total;
+    const totalIncluded = sumIncluded(items);
+    const totalExcluded = sumExcluded(items);
+    const remaining = limit - totalIncluded;
 
-    totalEurEl.textContent = `€ ${total}`;
+    totalEurEl.textContent = `€ ${totalIncluded}`;
     limitEurEl.textContent = `€ ${limit}`;
-    remainingEurEl.textContent = `€ ${Math.max(0, remaining)}${limit > 0 && remaining < 0 ? " (Superata)" : ""}`;
+    remainingEurEl.textContent = `€ ${remaining}`;
     remainingEurEl.style.color = (limit > 0 && remaining < 0) ? "#ef4444" : "";
+
+    if (totalExcluded > 0) {
+      excludedInfoEl.style.display = "block";
+      excludedInfoEl.textContent = `Escluse dal conteggio: € ${totalExcluded}`;
+    } else {
+      excludedInfoEl.style.display = "none";
+      excludedInfoEl.textContent = "";
+    }
+
     monthLabel.textContent = `Mese: ${MONTH_KEY}`;
   }
 
   function passesFilters(e) {
     if (filter === "recurring" && !e.isRecurring) return false;
     if (filter === "once" && e.isRecurring) return false;
+    if (filter === "excluded" && !e.isExcluded) return false;
+    if (filter === "included" && e.isExcluded) return false;
+
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       if (!String(e.label || "").toLowerCase().includes(q)) return false;
@@ -430,17 +539,44 @@
 
       const main = document.createElement("div");
       main.style.fontWeight = "900";
+      main.style.opacity = e.isExcluded ? "0.75" : "1";
       main.innerHTML = `€ ${e.amountEur} <span class="tag">• ${escapeHtml(e.label)}</span>`;
       left.appendChild(main);
+
+      const metaWrap = document.createElement("div");
+      metaWrap.style.display = "flex";
+      metaWrap.style.gap = "8px";
+      metaWrap.style.flexWrap = "wrap";
 
       const meta = document.createElement("div");
       meta.className = "pill";
       meta.textContent = e.isRecurring ? "Ricorrente" : "Una tantum";
-      left.appendChild(meta);
+      metaWrap.appendChild(meta);
+
+      if (e.isExcluded) {
+        const ex = document.createElement("div");
+        ex.className = "pill pillWarn";
+        ex.textContent = "Esclusa";
+        metaWrap.appendChild(ex);
+      }
+
+      left.appendChild(metaWrap);
 
       const right = document.createElement("div");
       right.className = "row";
 
+      // Toggle excluded/included
+      const exc = document.createElement("button");
+      exc.className = "btn";
+      exc.textContent = e.isExcluded ? "✓" : "Ø";
+      exc.title = e.isExcluded ? "Includi nel totale" : "Escludi dal totale";
+      exc.onclick = async () => {
+        e.isExcluded = !e.isExcluded;
+        await dbPut(STORE_EXP, e);
+        await refresh();
+      };
+
+      // Toggle recurring
       const tog = document.createElement("button");
       tog.className = "btn";
       tog.textContent = e.isRecurring ? "↺" : "1×";
@@ -451,6 +587,7 @@
         await refresh();
       };
 
+      // Delete
       const del = document.createElement("button");
       del.className = "btn btnDanger";
       del.textContent = "Elimina";
@@ -459,6 +596,7 @@
         await refresh();
       };
 
+      right.appendChild(exc);
       right.appendChild(tog);
       right.appendChild(del);
 
@@ -490,6 +628,12 @@
   async function refresh() {
     settings = (await dbGet(STORE_SET, "main")) || { monthlyLimitEur: 0 };
     items = await listExpensesByMonth(MONTH_KEY);
+
+    // Backward compat: se vecchie righe non hanno isExcluded, inizializza a false in memoria
+    for (const e of items) {
+      if (typeof e.isExcluded !== "boolean") e.isExcluded = false;
+    }
+
     renderKPIs();
     renderList();
     renderDatalist(await listRecentLabels());
@@ -518,7 +662,7 @@
       amountEur,
       label,
       isRecurring: !!recurringInput.checked,
-      // categoria (futuro)
+      isExcluded: false
     };
 
     await dbPut(STORE_EXP, e);
@@ -573,11 +717,13 @@
       if (table.length < 2) return alert("CSV vuoto o non valido.");
 
       const header = table[0].map(h => String(h).trim().toLowerCase());
-      const idx = (name) => header.indexOf(name);
+      const idx = (name) => header.indexOf(name.toLowerCase());
 
       const iAmt = idx("amount_eur");
       const iLbl = idx("label");
       const iRec = idx("recurring");
+      const iExc = idx("excluded");
+      // l'export usa "dateTime" -> in header lower diventa "datetime"
       const iDT  = idx("datetime");
 
       if (iAmt === -1 || iLbl === -1) {
@@ -593,6 +739,7 @@
         const amountEur = toInt(row[iAmt]);
         const label = String(row[iLbl] ?? "").trim();
         const isRecurring = (iRec !== -1) ? toBool(row[iRec]) : false;
+        const isExcluded = (iExc !== -1) ? toBool(row[iExc]) : false;
 
         if (amountEur <= 0 || !label) continue;
 
@@ -608,7 +755,8 @@
           createdAt,
           amountEur,
           label,
-          isRecurring
+          isRecurring,
+          isExcluded
         };
 
         await dbPut(STORE_EXP, e);
@@ -623,6 +771,71 @@
       alert("Errore durante l'import. Controlla il formato del CSV.");
     }
   };
+
+  // ---------- Install UI (show once) ----------
+  function openInstallSheet() {
+    installBackdrop.style.display = "block";
+    installSheet.style.display = "block";
+  }
+  function closeInstallSheet(markSeen = true) {
+    installBackdrop.style.display = "none";
+    installSheet.style.display = "none";
+    if (markSeen) markSeenInstallHint();
+    installBtn.style.display = "none";
+  }
+
+  installClose.onclick = () => closeInstallSheet(true);
+  installOk.onclick = () => closeInstallSheet(true);
+  installBackdrop.onclick = () => closeInstallSheet(true);
+
+  if (!hasSeenInstallHint()) {
+    if (isIOS() && !isStandalone()) {
+      installBtn.style.display = "inline-block";
+    }
+  }
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+
+    if (!isStandalone() && !hasSeenInstallHint()) {
+      installBtn.style.display = "inline-block";
+    }
+  });
+
+  installBtn.onclick = async () => {
+    if (isStandalone()) {
+      installBtn.style.display = "none";
+      return;
+    }
+    if (hasSeenInstallHint()) {
+      installBtn.style.display = "none";
+      return;
+    }
+
+    if (isIOS() && !deferredPrompt) {
+      openInstallSheet();
+      return;
+    }
+
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+
+      markSeenInstallHint();
+      installBtn.style.display = "none";
+      return;
+    }
+
+    openInstallSheet();
+  };
+
+  window.addEventListener("appinstalled", () => {
+    markSeenInstallHint();
+    installBtn.style.display = "none";
+    deferredPrompt = null;
+  });
 
   // ---------- PWA (service worker) ----------
   async function registerSW() {
@@ -642,33 +855,6 @@
     await registerSW();
   })();
 })();
-</script>
-
-<!-- Bottom sheet Export/Import -->
-<div id="eiBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);"></div>
-
-<div id="eiSheet" style="
-  display:none;
-  position:fixed; left:0; right:0; bottom:0;
-  background:#0f172a; border-top:1px solid #1f2a44;
-  border-radius:16px 16px 0 0;
-  padding:14px; box-shadow:0 -10px 25px rgba(0,0,0,.35);
-">
-  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-    <div style="font-weight:900;">Esporta / Importa</div>
-    <button class="btn" id="eiClose">Chiudi</button>
-  </div>
-
-  <div style="display:grid; gap:10px; margin-top:12px;">
-    <button class="btn" id="doExport">Esporta CSV (mese corrente)</button>
-    <button class="btn" id="doImport">Importa CSV</button>
-    <div class="muted">
-      Importa aggiunge voci al <b>mese corrente</b>. Formato supportato: quello esportato dall’app.
-    </div>
-  </div>
-</div>
-
-<input id="csvFile" type="file" accept=".csv,text/csv" style="display:none" />
-
+  </script>
 </body>
 </html>
