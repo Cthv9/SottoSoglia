@@ -1,9 +1,33 @@
-import { $, clamp, escapeHtml, monthsLeftFromEndMonth, normalizeEndMonth } from "./utils.js";
-import { STORE_EXP, STORE_SET, dbGet, dbPut, dbDelete, listExpensesByMonth, listRecentLabels } from "./db.js";
-import { downloadTextFile, expensesToCSV, parseCSV, toBool, toInt } from "./csv.js";
+import {
+  $,
+  clamp,
+  escapeHtml,
+  monthsLeftFromEndMonth,
+  normalizeEndMonth,
+  parseAmount,
+  roundUpToEuro,
+  uid
+} from "./utils.js";
+
+import {
+  STORE_EXP,
+  STORE_SET,
+  dbGet,
+  dbPut,
+  dbDelete,
+  listExpensesByMonth,
+  listRecentLabels
+} from "./db.js";
+
+import {
+  downloadTextFile,
+  expensesToCSV,
+  parseCSV,
+  toBool,
+  toInt
+} from "./csv.js";
 
 export function createUI({ MONTH_KEY }) {
-  // state
   let settings = { monthlyLimitEur: 0 };
   let items = [];
   let filter = "all";
@@ -79,6 +103,7 @@ export function createUI({ MONTH_KEY }) {
       remainingHintEl.textContent = (remaining >= 0)
         ? `Ti restano € ${remaining} prima di superare la soglia.`
         : `Sei oltre la soglia di € ${Math.abs(remaining)}.`;
+
       const pct = clamp((totalIncluded / limit) * 100, 0, 100);
       barFill.style.width = `${pct}%`;
       barHint.textContent = (totalIncluded <= limit)
@@ -132,7 +157,7 @@ export function createUI({ MONTH_KEY }) {
       row.style.cursor = "pointer";
 
       row.onclick = (ev) => {
-        if (ev.target && (ev.target.closest && ev.target.closest("button"))) return;
+        if (ev.target && ev.target.closest && ev.target.closest("button")) return;
         openEdit(e.id);
       };
 
@@ -231,7 +256,6 @@ export function createUI({ MONTH_KEY }) {
     }
   }
 
-  // sheets
   function openSheet(backdrop, sheet) { backdrop.style.display = "block"; sheet.style.display = "block"; }
   function closeSheet(backdrop, sheet) { backdrop.style.display = "none"; sheet.style.display = "none"; }
 
@@ -258,7 +282,6 @@ export function createUI({ MONTH_KEY }) {
     openEditSheet();
   }
 
-  // add endMonth UI
   function syncAddEndMonthUI() {
     const on = !!recurringInput.checked;
     addEndMonthWrap.style.display = on ? "block" : "none";
@@ -266,11 +289,11 @@ export function createUI({ MONTH_KEY }) {
     if (!on) addEndMonth.value = "";
   }
 
-  // public API
   async function refresh() {
     settings = (await dbGet(STORE_SET, "main")) || { monthlyLimitEur: 0 };
     items = await listExpensesByMonth(MONTH_KEY);
 
+    // backward compat
     for (const e of items) {
       if (typeof e.isExcluded !== "boolean") e.isExcluded = false;
       if (typeof e.endMonth !== "string") e.endMonth = "";
@@ -279,10 +302,10 @@ export function createUI({ MONTH_KEY }) {
     renderKPIs();
     renderList();
     renderDatalist(await listRecentLabels());
+    return settings;
   }
 
   function bind() {
-    // settings
     saveLimitBtn.onclick = async () => {
       const digits = String(limitInput.value || "").replace(/[^\d]/g, "");
       const n = digits ? Math.floor(Number(digits)) : 0;
@@ -291,11 +314,9 @@ export function createUI({ MONTH_KEY }) {
       await refresh();
     };
 
-    // add
     recurringInput.onchange = syncAddEndMonthUI;
 
     addBtn.onclick = async () => {
-      const { parseAmount, roundUpToEuro, uid, normalizeEndMonth } = await import("./utils.js");
       const parsed = parseAmount(amountInput.value);
       const label = String(labelInput.value || "").trim();
       if (parsed === null || parsed <= 0) return alert("Inserisci un importo valido (> 0).");
@@ -331,11 +352,10 @@ export function createUI({ MONTH_KEY }) {
       await refresh();
     };
 
-    // filters
     filterSelect.onchange = () => { filter = filterSelect.value; renderList(); };
     searchInput.oninput = () => { query = searchInput.value; renderList(); };
 
-    // export/import
+    // EI sheet
     eiBtn.onclick = openEISheet;
     eiClose.onclick = closeEISheet;
     eiBackdrop.onclick = closeEISheet;
@@ -365,13 +385,11 @@ export function createUI({ MONTH_KEY }) {
         const iRec = idx("recurring");
         const iExc = idx("excluded");
         const iEnd = idx("end_month");
-        const iDT  = idx("datetime");
+        const iDT  = idx("datetime"); // dateTime -> datetime
 
         if (iAmt === -1 || iLbl === -1) {
           return alert("CSV non riconosciuto. Deve contenere almeno: amount_eur,label");
         }
-
-        const { normalizeEndMonth, uid } = await import("./utils.js");
 
         let imported = 0;
         for (let r = 1; r < table.length; r++) {
@@ -392,7 +410,7 @@ export function createUI({ MONTH_KEY }) {
             if (!Number.isNaN(d.getTime())) createdAt = d.getTime();
           }
 
-          const e = {
+          await dbPut(STORE_EXP, {
             id: uid(),
             monthKey: MONTH_KEY,
             createdAt,
@@ -401,9 +419,8 @@ export function createUI({ MONTH_KEY }) {
             isRecurring,
             isExcluded,
             endMonth
-          };
+          });
 
-          await dbPut(STORE_EXP, e);
           imported++;
         }
 
@@ -416,7 +433,7 @@ export function createUI({ MONTH_KEY }) {
       }
     };
 
-    // edit
+    // edit sheet
     editClose.onclick = closeEditSheet;
     editCancel.onclick = closeEditSheet;
     editBackdrop.onclick = closeEditSheet;
@@ -429,7 +446,6 @@ export function createUI({ MONTH_KEY }) {
     editSave.onclick = async () => {
       if (!editingId) return;
 
-      const { parseAmount, roundUpToEuro, normalizeEndMonth } = await import("./utils.js");
       const parsed = parseAmount(editAmount.value);
       const label = String(editLabel.value || "").trim();
       if (parsed === null || parsed <= 0) return alert("Inserisci un importo valido (> 0).");
@@ -464,7 +480,7 @@ export function createUI({ MONTH_KEY }) {
       await refresh();
     };
 
-    // init UI state
+    // init
     syncAddEndMonthUI();
   }
 
