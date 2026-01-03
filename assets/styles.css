@@ -53,7 +53,7 @@ body{ padding-bottom: 116px; }
 .muted{ color: var(--muted); font-size: 12px; margin-top: 8px; }
 
 /* =========================
-   Topbar (sticky ONLY)
+   Topbar (sticky ONLY) + premium shadow on scroll
    ========================= */
 .topbar{
   position: sticky;
@@ -63,6 +63,13 @@ body{ padding-bottom: 116px; }
   background: color-mix(in srgb, var(--bg) 80%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
+.topbar.scrolled{
+  box-shadow: 0 8px 20px rgba(0,0,0,.18);
+}
+html[data-theme="light"] .topbar.scrolled{
+  box-shadow: 0 8px 20px rgba(15,23,42,.08);
+}
+
 .topbarInner{
   max-width: 720px;
   margin: 0 auto;
@@ -119,8 +126,6 @@ body{ padding-bottom: 116px; }
 .kpiHint{ margin-top: 6px; font-size: 12px; color: var(--muted); }
 .kpiSmall{ margin-top: 6px; font-size: 12px; color: var(--muted); }
 .kpiFoot{ margin-top: 10px; font-size: 12px; color: var(--muted); }
-
-.heroActions{ display:flex; align-items:center; }
 
 /* Premium gauge: thinner + softer */
 .bar{
@@ -219,10 +224,31 @@ input{ width: 100%; }
 }
 .rowKebab:active{ transform: translateY(1px); }
 
+/* Empty state */
+.emptyState{
+  border: 1px dashed color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 16px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--card2) 70%, transparent);
+  color: var(--muted);
+}
+.emptyTitle{ font-weight: 950; color: color-mix(in srgb, var(--text) 70%, var(--muted)); }
+.emptySub{ margin-top: 6px; font-size: 12px; line-height: 1.4; }
+
 /* =========================
-   Sheets
+   Sheets + Backdrops (premium animation)
    ========================= */
-.backdrop{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index: 40; }
+.backdrop{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  z-index: 40;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+.backdrop.isOpen{ opacity: 1; }
+
 .sheet{
   display:none;
   position:fixed; left:0; right:0; bottom:0;
@@ -232,12 +258,20 @@ input{ width: 100%; }
   padding: 14px;
   box-shadow: 0 -10px 25px rgba(0,0,0,.35);
   z-index: 41;
+
+  transform: translateY(14px);
+  opacity: 0;
+  transition: transform .18s ease, opacity .18s ease;
+}
+.sheet.isOpen{
+  transform: translateY(0);
+  opacity: 1;
 }
 .sheetTitle{ font-weight: 950; }
 .sheetGroup{ margin-top: 14px; display:grid; gap: 10px; }
 
 /* =========================
-   Add bar (bottom)
+   Add bar (bottom) + auto-hide on scroll down
    ========================= */
 .addBar{
   position: fixed;
@@ -246,7 +280,14 @@ input{ width: 100%; }
   background: color-mix(in srgb, var(--bg) 80%, transparent);
   border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   backdrop-filter: blur(10px);
+  transition: transform .18s ease, opacity .18s ease;
 }
+.addBar.hidden{
+  transform: translateY(18px);
+  opacity: 0;
+  pointer-events: none;
+}
+
 .addInner{
   max-width: 720px;
   margin: 0 auto;
@@ -308,10 +349,6 @@ html[data-theme="light"] .addBtn{ color: #0f172a; }
   font-weight: 950;
   cursor: pointer;
   white-space: nowrap;
-}
-.pillBtn:disabled{
-  opacity: .55;
-  cursor: not-allowed;
 }
 .pillBtn:active{ transform: translateY(1px); }
 

@@ -17,7 +17,7 @@
 
 <body>
   <!-- Sticky Top Bar (ONLY) -->
-  <header class="topbar">
+  <header class="topbar" id="topbar">
     <div class="topbarInner">
       <div class="topbarLeft">
         <div class="appTitle">SottoSoglia</div>
@@ -25,7 +25,7 @@
       </div>
 
       <div class="topbarRight">
-        <div class="monthPill" id="monthPill">--/----</div>
+        <div class="monthPill" id="monthPill">—</div>
         <button class="iconBtn" id="installBtn" style="display:none;" aria-label="Installa">⬇︎</button>
         <button class="iconBtn" id="menuBtn" aria-label="Menu">⋯</button>
       </div>
@@ -52,10 +52,6 @@
           <div class="kpiLabel">Residuo</div>
           <div class="kpiValue" id="remainingEur">€ 0</div>
           <div class="kpiHint" id="remainingHint"></div>
-        </div>
-
-        <div class="heroActions">
-          <button class="btn" id="editLimitBtn">Modifica soglia</button>
         </div>
       </div>
 
@@ -85,7 +81,7 @@
   </main>
 
   <!-- Add bar fixed bottom -->
-  <footer class="addBar">
+  <footer class="addBar" id="addBar">
     <div class="addInner">
       <div class="addGrid">
         <input id="amountInput" inputmode="decimal" placeholder="Importo" />
@@ -100,18 +96,18 @@
         <button class="addBtn" id="addBtn" aria-label="Aggiungi">＋</button>
       </div>
 
-      <div class="addRow2">
-        <button class="pillBtn" id="endMonthBtn" disabled>
+      <div class="addRow2" id="addRow2" style="display:none;">
+        <button class="pillBtn" id="endMonthBtn">
           Fine: <span id="endMonthLabel">—</span>
         </button>
-        <div class="addHint" id="addHint">Ricorrente: OFF</div>
+        <div class="addHint" id="addHint">Ricorrente: ON</div>
       </div>
     </div>
   </footer>
 
   <!-- Global Menu Sheet (⋯) -->
   <div id="menuBackdrop" class="backdrop"></div>
-  <div id="menuSheet" class="sheet">
+  <div id="menuSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Menu">
     <div class="rowBetween">
       <div class="sheetTitle">Menu</div>
       <button class="btn" id="menuClose">Chiudi</button>
@@ -139,7 +135,7 @@
 
   <!-- Limit Sheet -->
   <div id="limitBackdrop" class="backdrop"></div>
-  <div id="limitSheet" class="sheet">
+  <div id="limitSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Soglia">
     <div class="rowBetween">
       <div class="sheetTitle">Soglia</div>
       <button class="btn" id="limitClose">Chiudi</button>
@@ -154,14 +150,14 @@
 
   <!-- End month sheet (for NEW recurring expenses) -->
   <div id="endBackdrop" class="backdrop"></div>
-  <div id="endSheet" class="sheet">
+  <div id="endSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Fine ricorrenza">
     <div class="rowBetween">
       <div class="sheetTitle">Fine ricorrenza</div>
       <button class="btn" id="endClose">Chiudi</button>
     </div>
 
     <div class="muted" style="margin-top:10px;">
-      Inserisci <b>YYYY-MM</b> (es. 2027-03). In lista vedrai <b>*mesi rimanenti</b>.
+      Formato <b>YYYY-MM</b> (es. 2027-03). In lista vedrai <b>*mesi rimanenti</b>.
       Lascia vuoto per “nessuna fine”.
     </div>
 
@@ -173,7 +169,7 @@
 
   <!-- Export/Import -->
   <div id="eiBackdrop" class="backdrop"></div>
-  <div id="eiSheet" class="sheet">
+  <div id="eiSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Esporta Importa">
     <div class="rowBetween">
       <div class="sheetTitle">Esporta / Importa</div>
       <button class="btn" id="eiClose">Chiudi</button>
@@ -190,7 +186,7 @@
 
   <!-- Filter sheet -->
   <div id="filterBackdrop" class="backdrop"></div>
-  <div id="filterSheet" class="sheet">
+  <div id="filterSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Filtro">
     <div class="rowBetween">
       <div class="sheetTitle">Filtro</div>
       <button class="btn" id="filterClose">Chiudi</button>
@@ -207,7 +203,7 @@
 
   <!-- Row Actions sheet -->
   <div id="rowBackdrop" class="backdrop"></div>
-  <div id="rowSheet" class="sheet">
+  <div id="rowSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Azioni voce">
     <div class="rowBetween">
       <div class="sheetTitle">Azioni</div>
       <button class="btn" id="rowClose">Chiudi</button>
@@ -229,7 +225,7 @@
 
   <!-- Edit -->
   <div id="editBackdrop" class="backdrop"></div>
-  <div id="editSheet" class="sheet">
+  <div id="editSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Modifica spesa">
     <div class="rowBetween">
       <div class="sheetTitle">Modifica spesa</div>
       <button class="btn" id="editClose">Chiudi</button>
@@ -267,7 +263,7 @@
 
   <!-- Install -->
   <div id="installBackdrop" class="backdrop"></div>
-  <div id="installSheet" class="sheet">
+  <div id="installSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Installa">
     <div class="rowBetween">
       <div class="sheetTitle">Installa SottoSoglia</div>
       <button class="btn" id="installClose">Chiudi</button>

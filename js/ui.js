@@ -23,6 +23,9 @@ export function createUI({ MONTH_KEY }) {
   const THEME_KEY = "sottosoglia_theme_v1"; // auto|light|dark
 
   // ---------------- Refs ----------------
+  const topbar = $("topbar");
+  const addBar = $("addBar");
+
   const monthPill = $("monthPill");
   const totalEurEl = $("totalEur");
   const limitEurEl = $("limitEur");
@@ -31,8 +34,6 @@ export function createUI({ MONTH_KEY }) {
   const excludedInfoEl = $("excludedInfo");
   const barFill = $("barFill");
   const barHint = $("barHint");
-
-  const editLimitBtn = $("editLimitBtn");
 
   const listEl = $("list");
   const searchInput = $("searchInput");
@@ -44,6 +45,7 @@ export function createUI({ MONTH_KEY }) {
   const labelInput = $("labelInput");
   const recurringInput = $("recurringInput");
   const addBtn = $("addBtn");
+  const addRow2 = $("addRow2");
   const addHint = $("addHint");
   const endMonthBtn = $("endMonthBtn");
   const endMonthLabel = $("endMonthLabel");
@@ -116,9 +118,19 @@ export function createUI({ MONTH_KEY }) {
   const toastUndo = $("toastUndo");
 
   // ---------------- Helpers ----------------
-  function formatMonthMMYYYY(monthKey) {
+  const MONTH_NAMES = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
+
+  function formatMonthPretty(monthKey) {
     const [y, m] = String(monthKey).split("-");
-    if (!y || !m) return "--/----";
+    const mm = Number(m);
+    if (!y || !mm || mm < 1 || mm > 12) return "—";
+    return `${MONTH_NAMES[mm - 1]} ${y}`;
+  }
+
+  function formatYYYYMMtoMMYYYY(v) {
+    const norm = normalizeEndMonth(v);
+    if (!norm) return "—";
+    const [y, m] = norm.split("-");
     return `${m}/${y}`;
   }
 
@@ -129,8 +141,30 @@ export function createUI({ MONTH_KEY }) {
     return arr.reduce((acc, e) => acc + (e.isExcluded ? (e.amountEur || 0) : 0), 0);
   }
 
-  function openSheet(backdrop, sheet) { backdrop.style.display = "block"; sheet.style.display = "block"; }
-  function closeSheet(backdrop, sheet) { backdrop.style.display = "none"; sheet.style.display = "none"; }
+  // ---------------- Premium sheets animation ----------------
+  const OPEN_MS = 180;
+
+  function openSheet(backdrop, sheet) {
+    backdrop.style.display = "block";
+    sheet.style.display = "block";
+    requestAnimationFrame(() => {
+      backdrop.classList.add("isOpen");
+      sheet.classList.add("isOpen");
+    });
+  }
+
+  function closeSheet(backdrop, sheet) {
+    backdrop.classList.remove("isOpen");
+    sheet.classList.remove("isOpen");
+    setTimeout(() => {
+      backdrop.style.display = "none";
+      sheet.style.display = "none";
+    }, OPEN_MS);
+  }
+
+  function isAnySheetOpen() {
+    return document.querySelector(".sheet.isOpen") !== null;
+  }
 
   // ---------------- Theme ----------------
   function systemPrefersDark() {
@@ -167,22 +201,21 @@ export function createUI({ MONTH_KEY }) {
   function saveEndMonth(v) {
     newRecurringEndMonth = normalizeEndMonth(v) || "";
     try { localStorage.setItem(END_LS_KEY, newRecurringEndMonth); } catch {}
-    renderAddHint();
+    renderAddRecurringUI();
   }
 
-  function renderAddHint() {
+  function renderAddRecurringUI() {
     const on = !!recurringInput.checked;
-    endMonthBtn.disabled = !on;
 
     if (!on) {
-      endMonthLabel.textContent = "—";
-      addHint.textContent = "Ricorrente: OFF";
+      addRow2.style.display = "none";
       return;
     }
 
-    endMonthLabel.textContent = newRecurringEndMonth ? newRecurringEndMonth : "—";
+    addRow2.style.display = "flex";
+    endMonthLabel.textContent = newRecurringEndMonth ? formatYYYYMMtoMMYYYY(newRecurringEndMonth) : "—";
     addHint.textContent = newRecurringEndMonth
-      ? `Ricorrente: ON • fine ${newRecurringEndMonth}`
+      ? `Ricorrente: ON • fine ${formatYYYYMMtoMMYYYY(newRecurringEndMonth)}`
       : "Ricorrente: ON • fine non impostata";
   }
 
@@ -231,7 +264,7 @@ export function createUI({ MONTH_KEY }) {
         ? `${Math.round(pct)}% della soglia utilizzata.`
         : `Oltre soglia di € ${totalIncluded - limit}.`;
     } else {
-      remainingHintEl.textContent = "Imposta una soglia per vedere quanto manca.";
+      remainingHintEl.textContent = "Imposta una soglia dal menu ⋯.";
       barFill.style.width = "0%";
       barHint.textContent = "Gauge disponibile dopo aver impostato la soglia.";
     }
@@ -244,7 +277,7 @@ export function createUI({ MONTH_KEY }) {
       excludedInfoEl.textContent = "";
     }
 
-    monthPill.textContent = formatMonthMMYYYY(MONTH_KEY);
+    monthPill.textContent = formatMonthPretty(MONTH_KEY);
   }
 
   // ---------------- Filters ----------------
@@ -307,10 +340,16 @@ export function createUI({ MONTH_KEY }) {
     const visible = items.filter(passesFilters);
 
     if (visible.length === 0) {
-      const d = document.createElement("div");
-      d.className = "muted";
-      d.textContent = "Nessuna voce.";
-      listEl.appendChild(d);
+      const box = document.createElement("div");
+      box.className = "emptyState";
+      box.innerHTML = `
+        <div class="emptyTitle">Nessuna voce ancora</div>
+        <div class="emptySub">
+          Aggiungi una spesa dal pannello in basso (Importo + Tag + ＋).<br/>
+          Tip: usa tag coerenti (es. “Affitto”, “Benzina”) per filtrare meglio.
+        </div>
+      `;
+      listEl.appendChild(box);
       return;
     }
 
@@ -351,7 +390,7 @@ export function createUI({ MONTH_KEY }) {
           const mm = document.createElement("div");
           mm.className = "pill pillInfo";
           mm.textContent = `*${leftMonths}`;
-          mm.title = `Mesi rimanenti fino a ${normalizeEndMonth(e.endMonth)}`;
+          mm.title = `Mesi rimanenti (fine ${formatYYYYMMtoMMYYYY(e.endMonth)})`;
           metaWrap.appendChild(mm);
         }
       }
@@ -407,6 +446,49 @@ export function createUI({ MONTH_KEY }) {
     closeSheet(editBackdrop, editSheet);
   }
 
+  // ---------------- Premium: Topbar shadow + AddBar hide on scroll ----------------
+  function elementContainsActive(el) {
+    const a = document.activeElement;
+    return el && a && el.contains(a);
+  }
+
+  function setupScrollUX() {
+    let lastY = window.scrollY;
+    let ticking = false;
+
+    function update() {
+      ticking = false;
+      const y = window.scrollY;
+
+      // topbar shadow
+      if (y > 6) topbar.classList.add("scrolled");
+      else topbar.classList.remove("scrolled");
+
+      // add bar auto-hide (only if no sheet open and not typing in add bar)
+      if (isAnySheetOpen() || elementContainsActive(addBar)) {
+        addBar.classList.remove("hidden");
+        lastY = y;
+        return;
+      }
+
+      const delta = y - lastY;
+      if (delta > 8) addBar.classList.add("hidden");     // scrolling down
+      else if (delta < -8) addBar.classList.remove("hidden"); // scrolling up
+
+      lastY = y;
+    }
+
+    window.addEventListener("scroll", () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    }, { passive: true });
+
+    // initial state
+    update();
+  }
+
   // ---------------- Public API ----------------
   async function refresh() {
     settings = (await dbGet(STORE_SET, "main")) || { monthlyLimitEur: 0 };
@@ -422,15 +504,14 @@ export function createUI({ MONTH_KEY }) {
     renderDatalist(await listRecentLabels());
 
     limitInput.value = String(settings.monthlyLimitEur || 0);
-    renderAddHint();
+    renderAddRecurringUI();
   }
 
   function bind() {
     // init theme + endMonth
     applyTheme(getSavedTheme());
     loadEndMonth();
-
-    monthPill.textContent = formatMonthMMYYYY(MONTH_KEY);
+    monthPill.textContent = formatMonthPretty(MONTH_KEY);
 
     // search
     searchInput.oninput = () => {
@@ -468,7 +549,6 @@ export function createUI({ MONTH_KEY }) {
       limitInput.focus();
     }
     openLimitBtn.onclick = openLimitSheet;
-    editLimitBtn.onclick = openLimitSheet;
 
     themeAuto.onclick = () => saveTheme("auto");
     themeLight.onclick = () => saveTheme("light");
@@ -487,9 +567,8 @@ export function createUI({ MONTH_KEY }) {
       await refresh();
     };
 
-    // add recurring end month sheet (only when recurring ON)
+    // recurring end month sheet (only when recurring ON)
     endMonthBtn.onclick = () => {
-      if (endMonthBtn.disabled) return;
       endInput.value = newRecurringEndMonth || "";
       openSheet(endBackdrop, endSheet);
       endInput.focus();
@@ -504,7 +583,7 @@ export function createUI({ MONTH_KEY }) {
     };
 
     // add
-    recurringInput.onchange = renderAddHint;
+    recurringInput.onchange = () => renderAddRecurringUI();
 
     addBtn.onclick = async () => {
       const { parseAmount, roundUpToEuro, uid } = await import("./utils.js");
@@ -533,7 +612,7 @@ export function createUI({ MONTH_KEY }) {
       amountInput.value = "";
       labelInput.value = "";
       recurringInput.checked = false;
-      renderAddHint();
+      renderAddRecurringUI();
 
       await refresh();
       amountInput.focus();
@@ -612,7 +691,7 @@ export function createUI({ MONTH_KEY }) {
 
         closeSheet(eiBackdrop, eiSheet);
         await refresh();
-        alert(`Import completato: ${imported} voci aggiunte al mese ${formatMonthMMYYYY(MONTH_KEY)}.`);
+        alert(`Import completato: ${imported} voci aggiunte a ${formatMonthPretty(MONTH_KEY)}.`);
       } catch (err) {
         console.error(err);
         alert("Errore durante l'import. Controlla il formato del CSV.");
@@ -704,7 +783,12 @@ export function createUI({ MONTH_KEY }) {
 
     // toast init
     hideToast();
-    renderAddHint();
+
+    // initial recurring UI
+    renderAddRecurringUI();
+
+    // premium scroll UX
+    setupScrollUX();
   }
 
   return { bind, refresh };
