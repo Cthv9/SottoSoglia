@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>SottoSoglia</title>
+
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+
+  <!-- Favicons / Icons -->
+  <link rel="icon" href="./favicon.ico" />
+  <link rel="icon" type="image/png" sizes="512x512" href="./pwa-512.png" />
+  <link rel="apple-touch-icon" href="./pwa-512.png" />
+
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background: #0b1220;
+      color: #e2e8f0;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
+    .top {
+      display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+      margin-bottom: 12px;
+    }
+    .title { font-weight: 900; font-size: 20px; }
+    .sub { color:#94a3b8; font-size: 12px; }
+    .btn {
+      border: 1px solid #334155;
+      background: #111c33;
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btnDanger { border-color:#7f1d1d; background:#3b0a0a; color:#fecaca; }
+    .card {
+      background:#0f172a;
+      border: 1px solid #1f2a44;
+      border-radius: 16px;
+      padding: 14px;
+      margin-top: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,.25);
+    }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .rowBetween { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .kpiLabel { font-size: 12px; color:#94a3b8; }
+    .kpiValue { font-size: 22px; font-weight: 900; }
+    input, select {
+      border: 1px solid #24324f;
+      background:#0b1220;
+      color:#e2e8f0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      outline: none;
+    }
+    input { width: 100%; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } }
+    .muted { color:#94a3b8; font-size: 12px; margin-top: 8px; }
+    .list { display:grid; gap: 10px; margin-top: 12px; }
+    .item {
+      display:flex; justify-content:space-between; align-items:center; gap: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid #1f2a44;
+      background:#0b1220;
+    }
+    .tag { color:#a5b4fc; font-weight: 800; }
+    .pill {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #334155;
+      color:#cbd5e1;
+    }
+    .footer { margin: 14px 0 4px; text-align:center; color:#94a3b8; font-size: 12px; }
+
+    @media (prefers-reduced-motion: no-preference) {
+      #eiSheet, #installSheet { transition: transform .15s ease, opacity .15s ease; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <div class="title">SottoSoglia</div>
+        <div class="sub">Spese del mese solare • dati locali • offline</div>
+      </div>
+      <div class="row">
+        <button class="btn" id="installBtn" style="display:none;">Installa</button>
+        <button class="btn" id="eiBtn">Esporta/Importa</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="rowBetween">
+        <div>
+          <div class="kpiLabel">Totale spese (mese)</div>
+          <div class="kpiValue" id="totalEur">€ 0</div>
+        </div>
+        <div style="text-align:right">
+          <div class="kpiLabel">Soglia (entrata tipica)</div>
+          <div class="kpiValue" id="limitEur">€ 0</div>
+        </div>
+      </div>
+
+      <div class="rowBetween" style="margin-top:12px">
+        <div>
+          <div class="kpiLabel">Residuo</div>
+          <div class="kpiValue" id="remainingEur">€ 0</div>
+        </div>
+
+        <div class="row">
+          <input id="limitInput" inputmode="numeric" placeholder="Soglia in euro (es. 1800)" />
+          <button class="btn" id="saveLimitBtn">Salva</button>
+        </div>
+      </div>
+
+      <div class="muted">
+        Regola: importi arrotondati <b>per eccesso</b> all’euro (12,10 → 13).
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:900">Aggiungi spesa</div>
+      <div class="grid2" style="margin-top:10px">
+        <input id="amountInput" inputmode="decimal" placeholder="Importo (es. 12,50)" />
+        <input id="labelInput" placeholder="Tag / descrizione (es. benzina)" list="recent-labels" />
+        <datalist id="recent-labels"></datalist>
+      </div>
+
+      <div class="rowBetween" style="margin-top:10px">
+        <label class="row" style="gap:8px; user-select:none;">
+          <input type="checkbox" id="recurringInput" />
+          <span>Ricorrente</span>
+        </label>
+        <button class="btn" id="addBtn" style="flex:1">Aggiungi</button>
+      </div>
+
+      <div class="muted">Suggerimento: scrivi il tag sempre uguale (“Affitto”, “Benzina”) per filtrare meglio.</div>
+    </div>
+
+    <div class="card">
+      <div class="rowBetween">
+        <div style="font-weight:900">Voci del mese</div>
+        <div class="row">
+          <select id="filterSelect">
+            <option value="all">Tutte</option>
+            <option value="recurring">Ricorrenti</option>
+            <option value="once">Una tantum</option>
+          </select>
+          <input id="searchInput" placeholder="Cerca tag…" />
+        </div>
+      </div>
+
+      <div class="list" id="list"></div>
+      <div class="footer" id="monthLabel"></div>
+    </div>
+  </div>
+
+  <!-- Bottom sheet Export/Import (prima dello script) -->
+  <div id="eiBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);"></div>
+
+  <div id="eiSheet" style="
+    display:none;
+    position:fixed; left:0; right:0; bottom:0;
+    background:#0f172a; border-top:1px solid #1f2a44;
+    border-radius:16px 16px 0 0;
+    padding:14px; box-shadow:0 -10px 25px rgba(0,0,0,.35);
+  ">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div style="font-weight:900;">Esporta / Importa</div>
+      <button class="btn" id="eiClose">Chiudi</button>
+    </div>
+
+    <div style="display:grid; gap:10px; margin-top:12px;">
+      <button class="btn" id="doExport">Esporta CSV (mese corrente)</button>
+      <button class="btn" id="doImport">Importa CSV</button>
+      <div class="muted">
+        Importa aggiunge voci al <b>mese corrente</b>. Formato supportato: quello esportato dall’app.
+      </div>
+    </div>
+  </div>
+
+  <input id="csvFile" type="file" accept=".csv,text/csv" style="display:none" />
+
+  <!-- Bottom sheet Install (iOS + fallback) -->
+  <div id="installBackdrop" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);"></div>
+
+  <div id="installSheet" style="
+    display:none;
+    position:fixed; left:0; right:0; bottom:0;
+    background:#0f172a; border-top:1px solid #1f2a44;
+    border-radius:16px 16px 0 0;
+    padding:14px; box-shadow:0 -10px 25px rgba(0,0,0,.35);
+  ">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div style="font-weight:900;">Installa SottoSoglia</div>
+      <button class="btn" id="installClose">Chiudi</button>
+    </div>
+
+    <div class="muted" style="margin-top:12px; line-height:1.4;">
+      Su iPhone/iPad Safari l’installazione si fa così:<br><br>
+      1) Tocca <b>Condividi</b> (⬆︎)<br>
+      2) Seleziona <b>Aggiungi a schermata Home</b><br>
+    </div>
+
+    <div style="display:grid; gap:10px; margin-top:12px;">
+      <button class="btn" id="installOk">Ok</button>
+    </div>
+  </div>
+
+  <script>
+(() => {
+  // ---------- Utilities ----------
+  const $ = (id) => document.getElementById(id);
+
+  function monthKeyFromDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    return `${y}-${m}`;
+  }
+  const MONTH_KEY = monthKeyFromDate(new Date());
+
+  function parseAmount(input) {
+    const normalized = String(input || "").replace(",", ".").trim();
+    if (!normalized) return null;
+    const n = Number(normalized);
+    if (!Number.isFinite(n)) return null;
+    return n;
+  }
+  function roundUpToEuro(amount) {
+    return Math.ceil(amount);
+  }
+
+  function downloadTextFile(filename, content, mime = "text/csv;charset=utf-8") {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function csvEscape(s) {
+    const str = String(s ?? "");
+    const needs = /[",\n]/.test(str);
+    const out = str.replace(/"/g, '""');
+    return needs ? `"${out}"` : out;
+  }
+
+  function expensesToCSV(monthKey, items) {
+    const header = ["month", "dateTime", "amount_eur", "label", "recurring"].join(",");
+    const rows = items.map(e => {
+      const dt = new Date(e.createdAt).toISOString();
+      return [
+        monthKey,
+        csvEscape(dt),
+        String(e.amountEur),
+        csvEscape(e.label),
+        e.isRecurring ? "true" : "false"
+      ].join(",");
+    });
+    return [header, ...rows].join("\n");
+  }
+
+  // ---------- CSV Import helpers ----------
+  function parseCSV(text) {
+    // parser CSV semplice con supporto a virgolette
+    const rows = [];
+    let row = [];
+    let cur = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const next = text[i + 1];
+
+      if (inQuotes) {
+        if (ch === '"' && next === '"') { cur += '"'; i++; continue; }
+        if (ch === '"') { inQuotes = false; continue; }
+        cur += ch;
+      } else {
+        if (ch === '"') { inQuotes = true; continue; }
+        if (ch === ",") { row.push(cur); cur = ""; continue; }
+        if (ch === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; continue; }
+        if (ch === "\r") continue;
+        cur += ch;
+      }
+    }
+    if (cur.length || row.length) { row.push(cur); rows.push(row); }
+    return rows;
+  }
+
+  function toBool(s) {
+    return String(s).trim().toLowerCase() === "true";
+  }
+
+  function toInt(s) {
+    const n = Number(String(s).trim());
+    return Number.isFinite(n) ? Math.floor(n) : 0;
+  }
+
+  // ---------- IndexedDB ----------
+  const DB_NAME = "sottosoglia_db";
+  const DB_VERSION = 1;
+  const STORE_EXP = "expenses";
+  const STORE_SET = "settings";
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE_EXP)) {
+          const s = db.createObjectStore(STORE_EXP, { keyPath: "id" });
+          s.createIndex("by-month", "monthKey", { unique: false });
+          s.createIndex("by-createdAt", "createdAt", { unique: false });
+        }
+        if (!db.objectStoreNames.contains(STORE_SET)) {
+          db.createObjectStore(STORE_SET);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function dbGet(store, key) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, "readonly");
+      const req = tx.objectStore(store).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function dbPut(store, value, key) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, "readwrite");
+      const os = tx.objectStore(store);
+      const req = (key !== undefined) ? os.put(value, key) : os.put(value);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function dbDelete(store, key) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, "readwrite");
+      const req = tx.objectStore(store).delete(key);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function listExpensesByMonth(monthKey) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_EXP, "readonly");
+      const idx = tx.objectStore(STORE_EXP).index("by-month");
+      const req = idx.getAll(monthKey);
+      req.onsuccess = () => {
+        const all = req.result || [];
+        all.sort((a,b) => b.createdAt - a.createdAt);
+        resolve(all);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function listRecentLabels(limit = 12) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_EXP, "readonly");
+      const req = tx.objectStore(STORE_EXP).getAll();
+      req.onsuccess = () => {
+        const all = req.result || [];
+        all.sort((a,b) => b.createdAt - a.createdAt);
+        const uniq = [];
+        for (const e of all) {
+          const lbl = String(e.label || "").trim();
+          if (!lbl) continue;
+          if (!uniq.includes(lbl)) uniq.push(lbl);
+          if (uniq.length >= limit) break;
+        }
+        resolve(uniq);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function uid() {
+    if (crypto && crypto.randomUUID) return crypto.randomUUID();
+    return String(Date.now()) + "-" + Math.random().toString(16).slice(2);
+  }
+
+  // ---------- Install logic (show once) ----------
+  const LS_INSTALL_SEEN = "sottosoglia_install_seen_v1";
+  let deferredPrompt = null;
+
+  function isStandalone() {
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches)
+      || window.navigator.standalone === true; // iOS
+  }
+
+  function isIOS() {
+    const ua = navigator.userAgent || "";
+    return /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  }
+
+  function hasSeenInstallHint() {
+    try { return localStorage.getItem(LS_INSTALL_SEEN) === "1"; } catch { return true; }
+  }
+
+  function markSeenInstallHint() {
+    try { localStorage.setItem(LS_INSTALL_SEEN, "1"); } catch {}
+  }
+
+  // ---------- App state ----------
+  let settings = { monthlyLimitEur: 0 };
+  let items = [];
+  let filter = "all";
+  let query = "";
+
+  // ---------- UI refs ----------
+  const totalEurEl = $("totalEur");
+  const limitEurEl = $("limitEur");
+  const remainingEurEl = $("remainingEur");
+  const limitInput = $("limitInput");
+  const saveLimitBtn = $("saveLimitBtn");
+
+  const amountInput = $("amountInput");
+  const labelInput = $("labelInput");
+  const recurringInput = $("recurringInput");
+  const addBtn = $("addBtn");
+
+  const listEl = $("list");
+  const filterSelect = $("filterSelect");
+  const searchInput = $("searchInput");
+  const monthLabel = $("monthLabel");
+
+  // Export/Import UI
+  const eiBtn = $("eiBtn");
+  const eiBackdrop = $("eiBackdrop");
+  const eiSheet = $("eiSheet");
+  const eiClose = $("eiClose");
+  const doExport = $("doExport");
+  const doImport = $("doImport");
+  const csvFile = $("csvFile");
+
+  // Install UI
+  const installBtn = $("installBtn");
+  const installBackdrop = $("installBackdrop");
+  const installSheet = $("installSheet");
+  const installClose = $("installClose");
+  const installOk = $("installOk");
+
+  const datalist = document.querySelector("#recent-labels");
+
+  // ---------- Render ----------
+  function renderKPIs() {
+    const limit = Number(settings.monthlyLimitEur) || 0;
+    const total = items.reduce((acc, e) => acc + (e.amountEur || 0), 0);
+    const remaining = limit - total;
+
+    totalEurEl.textContent = `€ ${total}`;
+    limitEurEl.textContent = `€ ${limit}`;
+    remainingEurEl.textContent = `€ ${Math.max(0, remaining)}${limit > 0 && remaining < 0 ? " (Superata)" : ""}`;
+    remainingEurEl.style.color = (limit > 0 && remaining < 0) ? "#ef4444" : "";
+    monthLabel.textContent = `Mese: ${MONTH_KEY}`;
+  }
+
+  function passesFilters(e) {
+    if (filter === "recurring" && !e.isRecurring) return false;
+    if (filter === "once" && e.isRecurring) return false;
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      if (!String(e.label || "").toLowerCase().includes(q)) return false;
+    }
+    return true;
+  }
+
+  function renderList() {
+    listEl.innerHTML = "";
+    const visible = items.filter(passesFilters);
+
+    if (visible.length === 0) {
+      const d = document.createElement("div");
+      d.className = "muted";
+      d.textContent = "Nessuna voce.";
+      listEl.appendChild(d);
+      return;
+    }
+
+    for (const e of visible) {
+      const row = document.createElement("div");
+      row.className = "item";
+
+      const left = document.createElement("div");
+      left.style.display = "flex";
+      left.style.flexDirection = "column";
+      left.style.gap = "6px";
+
+      const main = document.createElement("div");
+      main.style.fontWeight = "900";
+      main.innerHTML = `€ ${e.amountEur} <span class="tag">• ${escapeHtml(e.label)}</span>`;
+      left.appendChild(main);
+
+      const meta = document.createElement("div");
+      meta.className = "pill";
+      meta.textContent = e.isRecurring ? "Ricorrente" : "Una tantum";
+      left.appendChild(meta);
+
+      const right = document.createElement("div");
+      right.className = "row";
+
+      const tog = document.createElement("button");
+      tog.className = "btn";
+      tog.textContent = e.isRecurring ? "↺" : "1×";
+      tog.title = "Cambia ricorrente/una tantum";
+      tog.onclick = async () => {
+        e.isRecurring = !e.isRecurring;
+        await dbPut(STORE_EXP, e);
+        await refresh();
+      };
+
+      const del = document.createElement("button");
+      del.className = "btn btnDanger";
+      del.textContent = "Elimina";
+      del.onclick = async () => {
+        await dbDelete(STORE_EXP, e.id);
+        await refresh();
+      };
+
+      right.appendChild(tog);
+      right.appendChild(del);
+
+      row.appendChild(left);
+      row.appendChild(right);
+      listEl.appendChild(row);
+    }
+  }
+
+  function renderDatalist(labels) {
+    datalist.innerHTML = "";
+    for (const l of labels) {
+      const opt = document.createElement("option");
+      opt.value = l;
+      datalist.appendChild(opt);
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  // ---------- Actions ----------
+  async function refresh() {
+    settings = (await dbGet(STORE_SET, "main")) || { monthlyLimitEur: 0 };
+    items = await listExpensesByMonth(MONTH_KEY);
+    renderKPIs();
+    renderList();
+    renderDatalist(await listRecentLabels());
+  }
+
+  saveLimitBtn.onclick = async () => {
+    const digits = String(limitInput.value || "").replace(/[^\d]/g, "");
+    const n = digits ? Math.floor(Number(digits)) : 0;
+    settings.monthlyLimitEur = Math.max(0, Number.isFinite(n) ? n : 0);
+    await dbPut(STORE_SET, settings, "main");
+    await refresh();
+  };
+
+  addBtn.onclick = async () => {
+    const parsed = parseAmount(amountInput.value);
+    const label = String(labelInput.value || "").trim();
+    if (parsed === null || parsed <= 0) return alert("Inserisci un importo valido (> 0).");
+    if (!label) return alert("Inserisci un tag/descrizione.");
+
+    const amountEur = roundUpToEuro(parsed);
+
+    const e = {
+      id: uid(),
+      monthKey: MONTH_KEY,
+      createdAt: Date.now(),
+      amountEur,
+      label,
+      isRecurring: !!recurringInput.checked,
+    };
+
+    await dbPut(STORE_EXP, e);
+    amountInput.value = "";
+    labelInput.value = "";
+    recurringInput.checked = false;
+    await refresh();
+  };
+
+  filterSelect.onchange = () => {
+    filter = filterSelect.value;
+    renderList();
+  };
+
+  searchInput.oninput = () => {
+    query = searchInput.value;
+    renderList();
+  };
+
+  // ---------- Export/Import UI ----------
+  function openEISheet() {
+    eiBackdrop.style.display = "block";
+    eiSheet.style.display = "block";
+  }
+  function closeEISheet() {
+    eiBackdrop.style.display = "none";
+    eiSheet.style.display = "none";
+  }
+
+  eiBtn.onclick = openEISheet;
+  eiClose.onclick = closeEISheet;
+  eiBackdrop.onclick = closeEISheet;
+
+  doExport.onclick = () => {
+    const csv = expensesToCSV(MONTH_KEY, items);
+    downloadTextFile(`sottosoglia_spese_${MONTH_KEY}.csv`, csv);
+    closeEISheet();
+  };
+
+  doImport.onclick = () => {
+    csvFile.value = "";
+    csvFile.click();
+  };
+
+  csvFile.onchange = async () => {
+    const file = csvFile.files && csvFile.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const table = parseCSV(text);
+      if (table.length < 2) return alert("CSV vuoto o non valido.");
+
+      const header = table[0].map(h => String(h).trim().toLowerCase());
+      const idx = (name) => header.indexOf(name.toLowerCase());
+
+      const iAmt = idx("amount_eur");
+      const iLbl = idx("label");
+      const iRec = idx("recurring");
+      // l'export usa "dateTime" -> in header lower diventa "datetime"
+      const iDT  = idx("datetime");
+
+      if (iAmt === -1 || iLbl === -1) {
+        return alert("CSV non riconosciuto. Deve contenere almeno: amount_eur,label");
+      }
+
+      let imported = 0;
+
+      for (let r = 1; r < table.length; r++) {
+        const row = table[r];
+        if (!row || row.length === 0) continue;
+
+        const amountEur = toInt(row[iAmt]);
+        const label = String(row[iLbl] ?? "").trim();
+        const isRecurring = (iRec !== -1) ? toBool(row[iRec]) : false;
+
+        if (amountEur <= 0 || !label) continue;
+
+        let createdAt = Date.now();
+        if (iDT !== -1) {
+          const d = new Date(String(row[iDT] ?? "").trim());
+          if (!Number.isNaN(d.getTime())) createdAt = d.getTime();
+        }
+
+        const e = {
+          id: uid(),            // nuovo id (evita collisioni)
+          monthKey: MONTH_KEY,  // import nel mese corrente
+          createdAt,
+          amountEur,
+          label,
+          isRecurring
+        };
+
+        await dbPut(STORE_EXP, e);
+        imported++;
+      }
+
+      closeEISheet();
+      await refresh();
+      alert(`Import completato: ${imported} voci aggiunte al mese ${MONTH_KEY}.`);
+    } catch (err) {
+      console.error(err);
+      alert("Errore durante l'import. Controlla il formato del CSV.");
+    }
+  };
+
+  // ---------- Install UI (show once) ----------
+  function openInstallSheet() {
+    installBackdrop.style.display = "block";
+    installSheet.style.display = "block";
+  }
+  function closeInstallSheet(markSeen = true) {
+    installBackdrop.style.display = "none";
+    installSheet.style.display = "none";
+    if (markSeen) markSeenInstallHint();
+    // dopo la prima visualizzazione, non mostrare più il pulsante
+    installBtn.style.display = "none";
+  }
+
+  installClose.onclick = () => closeInstallSheet(true);
+  installOk.onclick = () => closeInstallSheet(true);
+  installBackdrop.onclick = () => closeInstallSheet(true);
+
+  // Se l'utente ha già visto il suggerimento, non mostriamo più nulla
+  if (!hasSeenInstallHint()) {
+    // iOS: mostriamo il pulsante solo per aprire le istruzioni
+    if (isIOS() && !isStandalone()) {
+      installBtn.style.display = "inline-block";
+    }
+  }
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+
+    // Mostra solo se non è già installata e non lo ha già visto
+    if (!isStandalone() && !hasSeenInstallHint()) {
+      installBtn.style.display = "inline-block";
+    }
+  });
+
+  installBtn.onclick = async () => {
+    // già installata
+    if (isStandalone()) {
+      installBtn.style.display = "none";
+      return;
+    }
+
+    // Se già visto, non fare nulla
+    if (hasSeenInstallHint()) {
+      installBtn.style.display = "none";
+      return;
+    }
+
+    // iOS: istruzioni
+    if (isIOS() && !deferredPrompt) {
+      openInstallSheet();
+      return;
+    }
+
+    // Android/Desktop: prompt ufficiale
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+
+      // segna come visto comunque (così è "una volta")
+      markSeenInstallHint();
+      installBtn.style.display = "none";
+
+      // se rifiutata, nessun disturbo futuro (show once)
+      return;
+    }
+
+    // fallback: mostra istruzioni generiche
+    openInstallSheet();
+  };
+
+  window.addEventListener("appinstalled", () => {
+    markSeenInstallHint();
+    installBtn.style.display = "none";
+    deferredPrompt = null;
+  });
+
+  // ---------- PWA (service worker) ----------
+  async function registerSW() {
+    if (!("serviceWorker" in navigator)) return;
+    try {
+      await navigator.serviceWorker.register("./sw.js", { scope: "./" });
+    } catch (e) {
+      console.warn("SW registration failed:", e);
+    }
+  }
+
+  // ---------- Init ----------
+  (async () => {
+    limitInput.value = "0";
+    await refresh();
+    limitInput.value = String(settings.monthlyLimitEur || 0);
+    await registerSW();
+  })();
+})();
+  </script>
+</body>
+</html>
