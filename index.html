@@ -51,14 +51,13 @@
         <div>
           <div class="kpiLabel">Residuo</div>
           <div class="kpiValue" id="remainingEur">€ 0</div>
-          <div class="kpiHint" id="remainingHint"></div>
+          <div class="kpiHint" id="statusHint"></div>
         </div>
       </div>
 
       <div class="bar" aria-label="Progresso rispetto alla soglia">
         <div class="barFill" id="barFill"></div>
       </div>
-      <div class="kpiHint" id="barHint"></div>
 
       <div class="kpiFoot">
         Regola: importi arrotondati <b>per eccesso</b> all’euro (12,10 → 13).
@@ -96,6 +95,7 @@
         <button class="addBtn" id="addBtn" aria-label="Aggiungi">＋</button>
       </div>
 
+      <!-- appare solo se Ricorrente ON (gestito via JS) -->
       <div class="addRow2" id="addRow2" style="display:none;">
         <button class="pillBtn" id="endMonthBtn">
           Fine: <span id="endMonthLabel">—</span>
@@ -133,7 +133,7 @@
     </div>
   </div>
 
-  <!-- Limit Sheet -->
+  <!-- Limit Sheet (solo dal menu) -->
   <div id="limitBackdrop" class="backdrop"></div>
   <div id="limitSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Soglia">
     <div class="rowBetween">
@@ -157,12 +157,12 @@
     </div>
 
     <div class="muted" style="margin-top:10px;">
-      Formato <b>YYYY-MM</b> (es. 2027-03). In lista vedrai <b>*mesi rimanenti</b>.
+      Formato <b>MM/YYYY</b> (es. 03/2027). In lista vedrai <b>*mesi rimanenti</b>.
       Lascia vuoto per “nessuna fine”.
     </div>
 
     <div style="display:grid; gap:10px; margin-top:12px;">
-      <input id="endInput" placeholder="YYYY-MM (opzionale)" />
+      <input id="endInput" placeholder="MM/YYYY (opzionale)" />
       <button class="btn" id="endSave">Salva</button>
     </div>
   </div>
@@ -178,7 +178,7 @@
       <button class="btn" id="doExport">Esporta CSV (mese corrente)</button>
       <button class="btn" id="doImport">Importa CSV</button>
       <div class="muted">
-        Importa aggiunge voci al <b>mese corrente</b>. Supporta anche <b>excluded</b> e <b>end_month</b>.
+        Importa aggiunge voci al <b>mese corrente</b>. Supporta anche <b>excluded</b> e <b>end_month</b> (CSV usa YYYY-MM).
       </div>
     </div>
   </div>
@@ -240,7 +240,7 @@
         <span>Ricorrente</span>
       </label>
 
-      <input id="editEndMonth" placeholder="Fine ricorrenza (YYYY-MM) es. 2027-03" />
+      <input id="editEndMonth" placeholder="Fine ricorrenza (MM/YYYY) es. 03/2027" />
 
       <label class="row" style="gap:8px; user-select:none;">
         <input type="checkbox" id="editExcluded" />
