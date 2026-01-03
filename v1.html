@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#0f172a" />
   <link rel="manifest" href="./manifest.webmanifest" />
 
+  <!-- Favicons / Icons -->
   <link rel="icon" href="./favicon.ico" />
   <link rel="icon" type="image/png" sizes="512x512" href="./pwa-512.png" />
   <link rel="apple-touch-icon" href="./pwa-512.png" />
@@ -179,12 +180,6 @@
           <span>Ricorrente</span>
         </label>
         <button class="btn" id="addBtn" style="flex:1">Aggiungi</button>
-      </div>
-
-      <!-- NEW: end month input shown only if recurring -->
-      <div id="addEndMonthWrap" style="display:none; margin-top:10px;">
-        <input id="addEndMonth" placeholder="Fine ricorrenza (YYYY-MM) es. 2027-03" />
-        <div class="muted">Opzionale: in lista vedrai <b>*mesi rimanenti</b>.</div>
       </div>
 
       <div class="muted">Suggerimento: scrivi il tag sempre uguale (“Affitto”, “Benzina”) per filtrare meglio.</div>
@@ -394,6 +389,7 @@
   function normalizeEndMonth(raw) {
     const s = String(raw || "").trim();
     if (!s) return "";
+    // accept "YYYY-MM" only
     if (!/^\d{4}-\d{2}$/.test(s)) return "";
     const [yy, mm] = s.split("-");
     const y = Number(yy);
@@ -403,6 +399,7 @@
   }
 
   function monthsInclusive(fromKey, toKey) {
+    // inclusive months count: fromKey->toKey, e.g. 2026-01 to 2026-01 => 1
     const [fy, fm] = fromKey.split("-").map(Number);
     const [ty, tm] = toKey.split("-").map(Number);
     if (![fy,fm,ty,tm].every(Number.isFinite)) return null;
@@ -415,7 +412,7 @@
     if (!em) return null;
     const n = monthsInclusive(MONTH_KEY, em);
     if (n === null) return null;
-    return n;
+    return n; // can be <=0 if already passed
   }
 
   // ---------- IndexedDB ----------
@@ -560,10 +557,6 @@
   const recurringInput = $("recurringInput");
   const addBtn = $("addBtn");
 
-  // NEW add endMonth UI
-  const addEndMonthWrap = $("addEndMonthWrap");
-  const addEndMonth = $("addEndMonth");
-
   const listEl = $("list");
   const filterSelect = $("filterSelect");
   const searchInput = $("searchInput");
@@ -684,6 +677,7 @@
       row.className = "item";
       row.style.cursor = "pointer";
 
+      // Tap su riga -> modifica
       row.onclick = (ev) => {
         if (ev.target && (ev.target.closest && ev.target.closest("button"))) return;
         openEdit(e.id);
@@ -733,6 +727,7 @@
       const right = document.createElement("div");
       right.className = "row";
 
+      // Toggle excluded/included
       const exc = document.createElement("button");
       exc.className = "btn";
       exc.textContent = e.isExcluded ? "✓" : "Ø";
@@ -744,6 +739,7 @@
         await refresh();
       };
 
+      // Toggle recurring
       const tog = document.createElement("button");
       tog.className = "btn";
       tog.textContent = e.isRecurring ? "↺" : "1×";
@@ -751,11 +747,13 @@
       tog.onclick = async (ev) => {
         ev.stopPropagation();
         e.isRecurring = !e.isRecurring;
+        // se non è più ricorrente, puliamo endMonth
         if (!e.isRecurring) e.endMonth = "";
         await dbPut(STORE_EXP, e);
         await refresh();
       };
 
+      // Delete (rapido)
       const del = document.createElement("button");
       del.className = "btn btnDanger";
       del.textContent = "Elimina";
@@ -806,6 +804,7 @@
     editExcluded.checked = !!e.isExcluded;
     editEndMonth.value = e.endMonth || "";
 
+    // UX: se non è ricorrente, disabilita campo fine
     editEndMonth.disabled = !editRecurring.checked;
     if (!editRecurring.checked) editEndMonth.value = "";
 
@@ -834,6 +833,7 @@
 
     const endMonth = editRecurring.checked ? normalizeEndMonth(editEndMonth.value) : "";
 
+    // Se l'utente ha scritto qualcosa di non valido, avvisa e non salvare
     if (editRecurring.checked && String(editEndMonth.value || "").trim() && !endMonth) {
       return alert("Fine ricorrenza non valida. Usa il formato YYYY-MM (es. 2027-03).");
     }
@@ -864,6 +864,7 @@
     settings = (await dbGet(STORE_SET, "main")) || { monthlyLimitEur: 0 };
     items = await listExpensesByMonth(MONTH_KEY);
 
+    // Backward compat
     for (const e of items) {
       if (typeof e.isExcluded !== "boolean") e.isExcluded = false;
       if (typeof e.endMonth !== "string") e.endMonth = "";
@@ -882,29 +883,11 @@
     await refresh();
   };
 
-  // NEW: show/hide endMonth input on add form
-  function syncAddEndMonthUI() {
-    const on = !!recurringInput.checked;
-    addEndMonthWrap.style.display = on ? "block" : "none";
-    addEndMonth.disabled = !on;
-    if (!on) addEndMonth.value = "";
-  }
-  recurringInput.onchange = syncAddEndMonthUI;
-
   addBtn.onclick = async () => {
     const parsed = parseAmount(amountInput.value);
     const label = String(labelInput.value || "").trim();
     if (parsed === null || parsed <= 0) return alert("Inserisci un importo valido (> 0).");
     if (!label) return alert("Inserisci un tag/descrizione.");
-
-    const isRecurring = !!recurringInput.checked;
-
-    const rawEnd = isRecurring ? String(addEndMonth.value || "").trim() : "";
-    const endMonth = isRecurring ? normalizeEndMonth(rawEnd) : "";
-
-    if (isRecurring && rawEnd && !endMonth) {
-      return alert("Fine ricorrenza non valida. Usa il formato YYYY-MM (es. 2027-03).");
-    }
 
     const amountEur = roundUpToEuro(parsed);
 
@@ -914,19 +897,15 @@
       createdAt: Date.now(),
       amountEur,
       label,
-      isRecurring,
+      isRecurring: !!recurringInput.checked,
       isExcluded: false,
-      endMonth
+      endMonth: ""
     };
 
     await dbPut(STORE_EXP, e);
-
     amountInput.value = "";
     labelInput.value = "";
     recurringInput.checked = false;
-    addEndMonth.value = "";
-    syncAddEndMonthUI();
-
     await refresh();
   };
 
@@ -982,7 +961,7 @@
       const iRec = idx("recurring");
       const iExc = idx("excluded");
       const iEnd = idx("end_month");
-      const iDT  = idx("datetime");
+      const iDT  = idx("datetime"); // dateTime -> datetime
 
       if (iAmt === -1 || iLbl === -1) {
         return alert("CSV non riconosciuto. Deve contenere almeno: amount_eur,label");
@@ -1002,9 +981,11 @@
 
         if (amountEur <= 0 || !label) continue;
 
-    <div style="display:grid; gap:10px; margin-top:12px;">
-      <input id="editAmount" inputmode="decimal" placeholder="Importo (es. 12,50)" />
-      <input id="editLabel" placeholder="Tag / descrizione" />
+        let createdAt = Date.now();
+        if (iDT !== -1) {
+          const d = new Date(String(row[iDT] ?? "").trim());
+          if (!Number.isNaN(d.getTime())) createdAt = d.getTime();
+        }
 
         const e = {
           id: uid(),
@@ -1017,12 +998,18 @@
           endMonth
         };
 
-      <input id="editEndMonth" placeholder="Fine ricorrenza (YYYY-MM) es. 2027-03" />
+        await dbPut(STORE_EXP, e);
+        imported++;
+      }
 
-      <label class="row" style="gap:8px; user-select:none;">
-        <input type="checkbox" id="editExcluded" />
-        <span>Escludi dal totale</span>
-      </label>
+      closeEISheet();
+      await refresh();
+      alert(`Import completato: ${imported} voci aggiunte al mese ${MONTH_KEY}.`);
+    } catch (err) {
+      console.error(err);
+      alert("Errore durante l'import. Controlla il formato del CSV.");
+    }
+  };
 
   // ---------- Install UI (show once) ----------
   function openInstallSheet() {
@@ -1102,7 +1089,6 @@
   // ---------- Init ----------
   (async () => {
     limitInput.value = "0";
-    syncAddEndMonthUI();
     await refresh();
     limitInput.value = String(settings.monthlyLimitEur || 0);
     await registerSW();
