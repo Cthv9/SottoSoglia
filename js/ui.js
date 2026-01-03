@@ -10,6 +10,11 @@ export function createUI({ MONTH_KEY }) {
   let query = "";
   let editingId = null;
 
+  // Undo state
+  const UNDO_MS = 6500;
+  let undoTimer = null;
+  let undoPayload = null; // { item, position? }
+
   // refs
   const totalEurEl = $("totalEur");
   const limitEurEl = $("limitEur");
@@ -57,6 +62,11 @@ export function createUI({ MONTH_KEY }) {
   const editExcluded = $("editExcluded");
   const editEndMonth = $("editEndMonth");
 
+  // toast
+  const toast = $("toast");
+  const toastText = $("toastText");
+  const toastUndo = $("toastUndo");
+
   function sumIncluded(arr) {
     return arr.reduce((acc, e) => acc + (!e.isExcluded ? (e.amountEur || 0) : 0), 0);
   }
@@ -64,6 +74,37 @@ export function createUI({ MONTH_KEY }) {
     return arr.reduce((acc, e) => acc + (e.isExcluded ? (e.amountEur || 0) : 0), 0);
   }
 
+  // ---------- Toast / Undo ----------
+  function hideToast() {
+    toast.style.display = "none";
+  }
+
+  function showToast(message) {
+    toastText.textContent = message;
+    toast.style.display = "flex";
+  }
+
+  function clearUndo() {
+    undoPayload = null;
+    if (undoTimer) clearTimeout(undoTimer);
+    undoTimer = null;
+    hideToast();
+  }
+
+  async function applyUndo() {
+    if (!undoPayload) return;
+    const { item } = undoPayload;
+    // Re-inserisce l'elemento con lo stesso id (ripristino)
+    await dbPut(STORE_EXP, item);
+    clearUndo();
+    await refresh();
+  }
+
+  toastUndo.onclick = () => {
+    applyUndo().catch(console.error);
+  };
+
+  // ---------- Render ----------
   function renderKPIs() {
     const limit = Number(settings.monthlyLimitEur) || 0;
     const totalIncluded = sumIncluded(items);
@@ -79,6 +120,7 @@ export function createUI({ MONTH_KEY }) {
       remainingHintEl.textContent = (remaining >= 0)
         ? `Ti restano € ${remaining} prima di superare la soglia.`
         : `Sei oltre la soglia di € ${Math.abs(remaining)}.`;
+
       const pct = clamp((totalIncluded / limit) * 100, 0, 100);
       barFill.style.width = `${pct}%`;
       barHint.textContent = (totalIncluded <= limit)
@@ -112,6 +154,39 @@ export function createUI({ MONTH_KEY }) {
       if (!String(e.label || "").toLowerCase().includes(q)) return false;
     }
     return true;
+  }
+
+  async function duplicateItem(e) {
+    const { uid } = await import("./utils.js");
+    const copy = {
+      ...e,
+      id: uid(),
+      createdAt: Date.now(),
+      monthKey: MONTH_KEY
+    };
+    await dbPut(STORE_EXP, copy);
+    await refresh();
+  }
+
+  async function deleteWithUndo(e) {
+    // se c'è un undo attivo, lo “finalizziamo” (niente ripristino)
+    clearUndo();
+
+    // salva snapshot per undo
+    undoPayload = { item: { ...e } };
+
+    // elimina
+    await dbDelete(STORE_EXP, e.id);
+
+    // refresh UI
+    await refresh();
+
+    // mostra toast
+    showToast("Voce eliminata.");
+    undoTimer = setTimeout(() => {
+      // scaduto: semplicemente puliamo lo stato
+      clearUndo();
+    }, UNDO_MS);
   }
 
   function renderList() {
@@ -180,6 +255,7 @@ export function createUI({ MONTH_KEY }) {
       const right = document.createElement("div");
       right.className = "row";
 
+      // Escludi / includi
       const exc = document.createElement("button");
       exc.className = "btn";
       exc.textContent = e.isExcluded ? "✓" : "Ø";
@@ -191,6 +267,7 @@ export function createUI({ MONTH_KEY }) {
         await refresh();
       };
 
+      // Ricorrente toggle
       const tog = document.createElement("button");
       tog.className = "btn";
       tog.textContent = e.isRecurring ? "↺" : "1×";
@@ -203,17 +280,28 @@ export function createUI({ MONTH_KEY }) {
         await refresh();
       };
 
+      // DUPLICA (nuovo)
+      const dup = document.createElement("button");
+      dup.className = "btn";
+      dup.textContent = "Copia";
+      dup.title = "Duplica questa voce";
+      dup.onclick = async (ev) => {
+        ev.stopPropagation();
+        await duplicateItem(e);
+      };
+
+      // Elimina con undo
       const del = document.createElement("button");
       del.className = "btn btnDanger";
       del.textContent = "Elimina";
       del.onclick = async (ev) => {
         ev.stopPropagation();
-        await dbDelete(STORE_EXP, e.id);
-        await refresh();
+        await deleteWithUndo(e);
       };
 
       right.appendChild(exc);
       right.appendChild(tog);
+      right.appendChild(dup);
       right.appendChild(del);
 
       row.appendChild(left);
@@ -459,13 +547,14 @@ export function createUI({ MONTH_KEY }) {
       const e = items.find(x => x.id === editingId);
       if (!e) return;
 
-      await dbDelete(STORE_EXP, e.id);
+      // cancellazione dal foglio: chiudiamo e usiamo undo
       closeEditSheet();
-      await refresh();
+      await deleteWithUndo(e);
     };
 
     // init UI state
     syncAddEndMonthUI();
+    hideToast();
   }
 
   return {

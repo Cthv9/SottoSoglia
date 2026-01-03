@@ -97,3 +97,33 @@ input { width: 100%; }
   padding:14px; box-shadow:0 -10px 25px rgba(0,0,0,.35);
 }
 .sheetTitle { font-weight:900; }
+
+/* Toast (Undo) */
+.toast{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 14px;
+  width: min(720px, calc(100% - 24px));
+  background: #0f172a;
+  border: 1px solid #1f2a44;
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 50;
+}
+.toastText { color:#cbd5e1; font-size: 13px; }
+.toastBtn{
+  border: 1px solid #334155;
+  background: #111c33;
+  color: #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.toastBtn:active{ transform: translateY(1px); }
