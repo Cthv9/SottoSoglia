@@ -114,9 +114,11 @@
     </div>
 
     <div class="sheetGroup" style="margin-top:12px;">
-      <button class="btn" id="openEIBtn">Esporta / Importa</button>
-      <button class="btn" id="openLimitBtn">Modifica soglia</button>
-    </div>
+	  <button class="btn" id="openEIBtn">Esporta / Importa</button>
+	  <button class="btn" id="openLimitBtn">Modifica soglia</button>
+	  <button class="btn btnDanger" id="clearMonthBtn">Ripulisci elenco (mese)</button>
+	  <button class="btn" id="openInfoBtn">Info</button>
+	</div>
 
     <div class="sheetGroup">
       <div class="muted" style="margin:8px 0 6px;">Tema</div>
@@ -147,6 +149,27 @@
       <div class="muted">Suggerimento: inserisci l’entrata tipica mensile.</div>
     </div>
   </div>
+  
+  <!-- Info Sheet -->
+	<div id="infoBackdrop" class="backdrop"></div>
+	<div id="infoSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Info">
+	  <div class="rowBetween">
+		<div class="sheetTitle">Info</div>
+		<button class="btn" id="infoClose">Chiudi</button>
+	  </div>
+
+	  <div class="muted" style="margin-top:12px; line-height:1.5;">
+		<b>SottoSoglia</b> è una calcolatrice che classifica le spese per verificare se le uscite del mese
+		restano <b>sotto la tua entrata tipica</b> (soglia).<br><br>
+
+		• Inserisci spese con un <b>tag</b> e assegna una ricorrenza (opzionale).<br>
+		• Gli importi sono <b>arrotondati per eccesso</b> all’euro.<br>
+		• I dati sono salvati <b>solo in locale</b> sul dispositivo (offline).<br>
+		• Puoi <b>esportare/importare</b> in CSV dal menu.<br><br>
+
+		Nota: “Ripulisci elenco” elimina le voci del <b>mese corrente</b>.
+	  </div>
+	</div>
 
   <!-- End month sheet (for NEW recurring expenses) -->
   <div id="endBackdrop" class="backdrop"></div>

@@ -59,6 +59,11 @@ export function createUI({ MONTH_KEY }) {
   const themeAuto = $("themeAuto");
   const themeLight = $("themeLight");
   const themeDark = $("themeDark");
+  const clearMonthBtn = $("clearMonthBtn");
+  const openInfoBtn = $("openInfoBtn");
+  const infoBackdrop = $("infoBackdrop");
+  const infoSheet = $("infoSheet");
+  const infoClose = $("infoClose");
 
   // Limit sheet
   const limitBackdrop = $("limitBackdrop");
@@ -280,16 +285,25 @@ export function createUI({ MONTH_KEY }) {
 
 
     if (limit <= 0) {
-      statusHintEl.textContent = "ℹ️ Imposta la soglia dal menu ⋯";
-      barFill.style.width = "0%";
-    } else if (remaining >= 0) {
-      statusHintEl.textContent = `✅ Ti restano € ${remaining}`;
-      const pct = clamp((totalIncluded / limit) * 100, 0, 100);
-      barFill.style.width = `${pct}%`;
-    } else {
-      statusHintEl.textContent = `⚠️ Oltre soglia di € ${Math.abs(remaining)}`;
-      barFill.style.width = "100%";
-    }
+	  statusHintEl.textContent = "ℹ️ Imposta una soglia dal menu ⋯";
+	  barFill.style.width = "0%";
+	} else {
+	  const pct = clamp((totalIncluded / limit) * 100, 0, 100);
+	  barFill.style.width = `${pct}%`;
+
+	  if (remaining < 0) {
+		statusHintEl.textContent = "❗ Sforamento: hai superato il tuo budget. Valuta uso di risparmi (o rateizza).";
+	  } else if (pct < 60) {
+		statusHintEl.textContent = "✅ Budget sotto controllo.";
+	  } else if (pct < 70) {
+		statusHintEl.textContent = "🙂 Direi che per questo mese basta così.";
+	  } else if (pct < 80) {
+		statusHintEl.textContent = "⚠️ Stai spendendo troppo: riduci le spese se vuoi risparmiare.";
+	  } else {
+		statusHintEl.textContent = "🚨 Zona rossa: da qui in poi pesa ogni spesa.";
+	  }
+	}
+
 
     if (totalExcluded > 0) {
       excludedInfoEl.style.display = "block";
@@ -331,6 +345,19 @@ export function createUI({ MONTH_KEY }) {
     await refresh();
     showToast("Voce eliminata.");
     undoTimer = setTimeout(() => { clearUndo(); }, UNDO_MS);
+  }
+
+  async function clearCurrentMonth() {
+    const ok = confirm(`Vuoi eliminare TUTTE le voci di ${MONTH_KEY}? Questa azione non è annullabile.`);
+    if (!ok) return;
+
+    // cancella solo le voci del mese corrente (quelle già in "items")
+    for (const e of items) {
+      await dbDelete(STORE_EXP, e.id);
+    }
+
+    await refresh();
+    alert("Elenco del mese ripulito.");
   }
 
   function renderDatalist(labels) {
@@ -569,6 +596,21 @@ export function createUI({ MONTH_KEY }) {
       closeSheet(menuBackdrop, menuSheet);
       openSheet(eiBackdrop, eiSheet);
     };
+	
+	// Ripulisci elenco (mese)
+	clearMonthBtn.onclick = async () => {
+	  closeSheet(menuBackdrop, menuSheet);
+	  await clearCurrentMonth();
+	};
+
+	// Info
+	openInfoBtn.onclick = () => {
+	  closeSheet(menuBackdrop, menuSheet);
+	  openSheet(infoBackdrop, infoSheet);
+	};
+	infoClose.onclick = () => closeSheet(infoBackdrop, infoSheet);
+	infoBackdrop.onclick = () => closeSheet(infoBackdrop, infoSheet);
+
 
     // Limit (solo dal menu)
     openLimitBtn.onclick = () => {
