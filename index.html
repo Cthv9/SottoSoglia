@@ -75,7 +75,7 @@
       </div>
 
       <div class="list" id="list"></div>
-      <div class="muted" style="margin-top:10px;">Suggerimento: tap su una voce per modificare.</div>
+      <div class="muted" style="margin-top:10px;">Suggerimento: tap per modificare • press prolungato per sommare individualmente.</div>
     </section>
   </main>
 
@@ -114,11 +114,11 @@
     </div>
 
     <div class="sheetGroup" style="margin-top:12px;">
-	  <button class="btn" id="openEIBtn">Esporta / Importa</button>
-	  <button class="btn" id="openLimitBtn">Modifica soglia</button>
-	  <button class="btn btnDanger" id="clearMonthBtn">Ripulisci elenco (mese)</button>
-	  <button class="btn" id="openInfoBtn">Info</button>
-	</div>
+      <button class="btn" id="openEIBtn">Esporta / Importa</button>
+      <button class="btn" id="openLimitBtn">Modifica soglia</button>
+      <button class="btn btnDanger" id="clearMonthBtn">Ripulisci elenco (mese)</button>
+      <button class="btn" id="openInfoBtn">Info</button>
+    </div>
 
     <div class="sheetGroup">
       <div class="muted" style="margin:8px 0 6px;">Tema</div>
@@ -151,14 +151,14 @@
   </div>
   
   <!-- Info Sheet -->
-	<div id="infoBackdrop" class="backdrop"></div>
-	<div id="infoSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Info">
-	  <div class="rowBetween">
-		<div class="sheetTitle">Info</div>
-		<button class="btn" id="infoClose">Chiudi</button>
-	  </div>
+  <div id="infoBackdrop" class="backdrop"></div>
+  <div id="infoSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Info">
+    <div class="rowBetween">
+      <div class="sheetTitle">Info</div>
+      <button class="btn" id="infoClose">Chiudi</button>
+    </div>
 
-	  <div class="muted" style="margin-top:12px; line-height:1.5;">
+    <div class="muted" style="margin-top:12px; line-height:1.5;">
 		<b>SottoSoglia</b> calcola il tuo margine di spesa mensile residuo considerando entrate e spese ricorrenti.
 		  È pensata per aiutarti a gestire meglio il budget e capire quanto puoi spendere senza sorprese.<br><br>
 
@@ -169,8 +169,8 @@
 
 		  Nota: “Ripulisci elenco” cancella solo le spese del <b>mese attuale</b>.<br>
 		  <br>Made with ❤️ by DF
-	  </div>
 	</div>
+  </div>
 
   <!-- End month sheet (for NEW recurring expenses) -->
   <div id="endBackdrop" class="backdrop"></div>
@@ -305,15 +305,14 @@
   </div>
   
   <!-- Selection Sum Bar -->
-	<div id="selBar" class="selBar" style="display:none;">
-	  <div class="selBarText" id="selBarText">0 selezionate • € 0</div>
-	  <div class="selBarBtns">
-		<button class="selBtn" id="selCopy">Copia</button>
-		<button class="selBtn" id="selAll">Tutte visibili</button>
-		<button class="selBtn" id="selClear">Chiudi</button>
-	  </div>
-	</div>
-
+  <div id="selBar" class="selBar" style="display:none;">
+    <div class="selBarText" id="selBarText">0 selezionate • € 0</div>
+    <div class="selBarBtns">
+      <button class="selBtn" id="selCopy">Copia</button>
+      <button class="selBtn" id="selAll">Tutte visibili</button>
+      <button class="selBtn" id="selClear">Chiudi</button>
+    </div>
+  </div>
 
   <!-- Toast Undo -->
   <div id="toast" class="toast" style="display:none;">
