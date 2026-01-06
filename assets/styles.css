@@ -401,3 +401,51 @@ html[data-theme="light"] .addBtn{ color: #0f172a; }
 .toTopBtn:active{
   transform: translateY(1px);
 }
+
+/* Selection Sum Bar */
+.selBar{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 128px; /* sopra add bar (coerente col toast) */
+  width: min(720px, calc(100% - 24px));
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 65;
+}
+
+.selBarText{
+  font-size: 13px;
+  font-weight: 950;
+  color: color-mix(in srgb, var(--text) 92%, transparent);
+}
+
+.selBarBtns{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selBtn{
+  border: 1px solid var(--btnBorder);
+  background: var(--btn);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 950;
+  cursor: pointer;
+}
+.selBtn:active{ transform: translateY(1px); }
+
+/* Righe selezionate */
+.item.selected{
+  outline: 2px solid color-mix(in srgb, var(--accent2) 55%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent2) 14%, transparent);
+}
