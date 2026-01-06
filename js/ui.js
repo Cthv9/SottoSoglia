@@ -477,16 +477,27 @@ export function createUI({ MONTH_KEY }) {
         openEdit(e.id);
       };
 
+      // ---- Long press (Android + iOS robust) ----
       let pressTimer = null;
-      let moved = false;
+      let startX = 0;
+      let startY = 0;
+      let didLongPress = false;
 
-      row.addEventListener("pointerdown", (ev) => {
+      function clearPressTimer() {
+        if (pressTimer) clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+
+      function startPress(ev, x, y) {
         if (ev.target && ev.target.closest && ev.target.closest("button")) return;
 
-        moved = false;
+        startX = x;
+        startY = y;
+        didLongPress = false;
 
+        clearPressTimer();
         pressTimer = setTimeout(() => {
-          if (moved) return;
+          didLongPress = true;
 
           if (!selectionMode) {
             openSelectionMode(e.id);
@@ -495,24 +506,65 @@ export function createUI({ MONTH_KEY }) {
             row.classList.toggle("selected");
           }
         }, LONG_PRESS_MS);
+      }
+
+      function movePress(x, y) {
+        const dx = Math.abs(x - startX);
+        const dy = Math.abs(y - startY);
+        if (dx > 12 || dy > 12) clearPressTimer(); // cancella su scroll/drag reale
+      }
+
+      function endPress(ev) {
+        clearPressTimer();
+        if (didLongPress) {
+          ev.preventDefault?.();
+          ev.stopPropagation?.();
+        }
+      }
+
+      // Pointer events (desktop + Android)
+      row.addEventListener("pointerdown", (ev) => {
+        startPress(ev, ev.clientX, ev.clientY);
       });
 
-      row.addEventListener("pointermove", () => { moved = true; });
+      row.addEventListener("pointermove", (ev) => {
+        movePress(ev.clientX, ev.clientY);
+      });
 
-      row.addEventListener("pointerup", () => {
-        if (pressTimer) clearTimeout(pressTimer);
-        pressTimer = null;
+      row.addEventListener("pointerup", (ev) => {
+        endPress(ev);
       });
 
       row.addEventListener("pointercancel", () => {
-        if (pressTimer) clearTimeout(pressTimer);
-        pressTimer = null;
+        clearPressTimer();
       });
 
       row.addEventListener("pointerleave", () => {
-        if (pressTimer) clearTimeout(pressTimer);
-        pressTimer = null;
+        clearPressTimer();
       });
+
+      // Touch fallback (iOS Safari)
+      row.addEventListener("touchstart", (ev) => {
+        if (!ev.touches || ev.touches.length !== 1) return;
+        const t = ev.touches[0];
+        startPress(ev, t.clientX, t.clientY);
+      }, { passive: false });
+
+      row.addEventListener("touchmove", (ev) => {
+        if (!ev.touches || ev.touches.length !== 1) return;
+        const t = ev.touches[0];
+        movePress(t.clientX, t.clientY);
+      }, { passive: true });
+
+      row.addEventListener("touchend", (ev) => {
+        endPress(ev);
+      }, { passive: false });
+
+      row.addEventListener("touchcancel", () => {
+        clearPressTimer();
+      });
+
+      // ---- /Long press ----
 
       const left = document.createElement("div");
       left.style.display = "flex";
