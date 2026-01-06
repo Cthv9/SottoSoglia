@@ -33,7 +33,7 @@ export function createUI({ MONTH_KEY }) {
   const statusHintEl = $("statusHint");
   const excludedInfoEl = $("excludedInfo");
   const barFill = $("barFill");
-
+  const toTopBtn = $("toTopBtn");
   const listEl = $("list");
   const searchInput = $("searchInput");
   const filterBtn = $("filterBtn");
@@ -510,6 +510,11 @@ export function createUI({ MONTH_KEY }) {
     function update() {
       ticking = false;
       const y = window.scrollY;
+	  
+	  // show/hide "back to top"
+      if (y > 600) toTopBtn.classList.add("show");
+	  else toTopBtn.classList.remove("show");
+
 
       if (y > 6) topbar.classList.add("scrolled");
       else topbar.classList.remove("scrolled");
@@ -868,6 +873,11 @@ export function createUI({ MONTH_KEY }) {
       closeEditSheet();
       await deleteWithUndo(e);
     };
+	
+    // To top
+	toTopBtn.onclick = () => {
+	  window.scrollTo({ top: 0, behavior: "smooth" });
+	};
 
     // Install help (manual)
     if (installBtn) {
