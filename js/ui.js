@@ -525,7 +525,7 @@ export function createUI({ MONTH_KEY }) {
       else if (delta < -8) addBar.classList.remove("hidden");
 	  
 	  // show "back to top" solo quando scrolli verso l'alto
-      if (y > 600 && y < lastY) {
+      if (y > 300 && y < lastY) {
 	    toTopBtn.classList.add("show");
 	  } 
 	  else {
