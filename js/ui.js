@@ -33,7 +33,7 @@ export function createUI({ MONTH_KEY }) {
   const statusHintEl = $("statusHint");
   const excludedInfoEl = $("excludedInfo");
   const barFill = $("barFill");
-
+  const toTopBtn = $("toTopBtn");
   const listEl = $("list");
   const searchInput = $("searchInput");
   const filterBtn = $("filterBtn");
@@ -523,6 +523,15 @@ export function createUI({ MONTH_KEY }) {
       const delta = y - lastY;
       if (delta > 8) addBar.classList.add("hidden");
       else if (delta < -8) addBar.classList.remove("hidden");
+	  
+	  // show "back to top" solo quando scrolli verso l'alto
+      if (y > 600 && y < lastY) {
+	    toTopBtn.classList.add("show");
+	  } 
+	  else {
+	    toTopBtn.classList.remove("show");
+	  }
+
 
       lastY = y;
     }
@@ -868,6 +877,20 @@ export function createUI({ MONTH_KEY }) {
       closeEditSheet();
       await deleteWithUndo(e);
     };
+	
+    // To top
+	toTopBtn.onclick = () => {
+    // Haptic feedback leggero (se supportato)
+    if (navigator.vibrate) {
+      navigator.vibrate(15);
+    }
+
+    // Nasconde subito il bottone
+    toTopBtn.classList.remove("show");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
 
     // Install help (manual)
     if (installBtn) {
