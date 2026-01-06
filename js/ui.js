@@ -510,11 +510,6 @@ export function createUI({ MONTH_KEY }) {
     function update() {
       ticking = false;
       const y = window.scrollY;
-	  
-	  // show/hide "back to top"
-      if (y > 600) toTopBtn.classList.add("show");
-	  else toTopBtn.classList.remove("show");
-
 
       if (y > 6) topbar.classList.add("scrolled");
       else topbar.classList.remove("scrolled");
@@ -528,6 +523,15 @@ export function createUI({ MONTH_KEY }) {
       const delta = y - lastY;
       if (delta > 8) addBar.classList.add("hidden");
       else if (delta < -8) addBar.classList.remove("hidden");
+	  
+	  // show "back to top" solo quando scrolli verso l'alto
+      if (y > 600 && y < lastY) {
+	    toTopBtn.classList.add("show");
+	  } 
+	  else {
+	    toTopBtn.classList.remove("show");
+	  }
+
 
       lastY = y;
     }
@@ -876,8 +880,17 @@ export function createUI({ MONTH_KEY }) {
 	
     // To top
 	toTopBtn.onclick = () => {
-	  window.scrollTo({ top: 0, behavior: "smooth" });
-	};
+    // Haptic feedback leggero (se supportato)
+    if (navigator.vibrate) {
+      navigator.vibrate(15);
+    }
+
+    // Nasconde subito il bottone
+    toTopBtn.classList.remove("show");
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
 
     // Install help (manual)
     if (installBtn) {
