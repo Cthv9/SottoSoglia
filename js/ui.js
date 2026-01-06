@@ -1,42 +1,85 @@
-import { $, clamp, escapeHtml, monthsLeftFromEndMonth, normalizeEndMonth } from "./utils.js";
+import { $, clamp, escapeHtml, monthsLeftFromEndMonth } from "./utils.js";
 import { STORE_EXP, STORE_SET, dbGet, dbPut, dbDelete, listExpensesByMonth, listRecentLabels } from "./db.js";
 import { downloadTextFile, expensesToCSV, parseCSV, toBool, toInt } from "./csv.js";
 
 export function createUI({ MONTH_KEY }) {
-  // state
+  // ---------------- State ----------------
   let settings = { monthlyLimitEur: 0 };
   let items = [];
   let filter = "all";
   let query = "";
   let editingId = null;
 
-  // refs
+  // End month for NEW recurring expenses (stored internally as YYYY-MM)
+  const END_LS_KEY = "sottosoglia_new_endmonth_v2";
+  let newRecurringEndMonth = "";
+
+  // Undo
+  const UNDO_MS = 6500;
+  let undoTimer = null;
+  let undoPayload = null;
+
+  // Theme
+  const THEME_KEY = "sottosoglia_theme_v1"; // auto|light|dark
+
+  // ---------------- Refs ----------------
+  const topbar = $("topbar");
+  const addBar = $("addBar");
+
+  const monthPill = $("monthPill");
   const totalEurEl = $("totalEur");
   const limitEurEl = $("limitEur");
   const remainingEurEl = $("remainingEur");
-  const remainingHintEl = $("remainingHint");
+  const statusHintEl = $("statusHint");
   const excludedInfoEl = $("excludedInfo");
-  const limitInput = $("limitInput");
-  const saveLimitBtn = $("saveLimitBtn");
-
   const barFill = $("barFill");
-  const barHint = $("barHint");
 
+  const listEl = $("list");
+  const searchInput = $("searchInput");
+  const filterBtn = $("filterBtn");
+  const datalist = document.querySelector("#recent-labels");
+
+  // Add bar
   const amountInput = $("amountInput");
   const labelInput = $("labelInput");
   const recurringInput = $("recurringInput");
   const addBtn = $("addBtn");
-  const addEndMonthWrap = $("addEndMonthWrap");
-  const addEndMonth = $("addEndMonth");
+  const addRow2 = $("addRow2");
+  const addHint = $("addHint");
+  const endMonthBtn = $("endMonthBtn");
+  const endMonthLabel = $("endMonthLabel");
 
-  const listEl = $("list");
-  const filterSelect = $("filterSelect");
-  const searchInput = $("searchInput");
-  const monthLabel = $("monthLabel");
-  const datalist = document.querySelector("#recent-labels");
+  // Menu
+  const menuBtn = $("menuBtn");
+  const menuBackdrop = $("menuBackdrop");
+  const menuSheet = $("menuSheet");
+  const menuClose = $("menuClose");
+  const openEIBtn = $("openEIBtn");
+  const openLimitBtn = $("openLimitBtn");
+  const themeAuto = $("themeAuto");
+  const themeLight = $("themeLight");
+  const themeDark = $("themeDark");
+  const clearMonthBtn = $("clearMonthBtn");
+  const openInfoBtn = $("openInfoBtn");
+  const infoBackdrop = $("infoBackdrop");
+  const infoSheet = $("infoSheet");
+  const infoClose = $("infoClose");
 
-  // export/import
-  const eiBtn = $("eiBtn");
+  // Limit sheet
+  const limitBackdrop = $("limitBackdrop");
+  const limitSheet = $("limitSheet");
+  const limitClose = $("limitClose");
+  const limitInput = $("limitInput");
+  const saveLimitBtn = $("saveLimitBtn");
+
+  // End month sheet
+  const endBackdrop = $("endBackdrop");
+  const endSheet = $("endSheet");
+  const endClose = $("endClose");
+  const endInput = $("endInput");
+  const endSave = $("endSave");
+
+  // Export/Import
   const eiBackdrop = $("eiBackdrop");
   const eiSheet = $("eiSheet");
   const eiClose = $("eiClose");
@@ -44,7 +87,23 @@ export function createUI({ MONTH_KEY }) {
   const doImport = $("doImport");
   const csvFile = $("csvFile");
 
-  // edit
+  // Filter sheet
+  const filterBackdrop = $("filterBackdrop");
+  const filterSheet = $("filterSheet");
+  const filterClose = $("filterClose");
+
+  // Row actions sheet
+  const rowBackdrop = $("rowBackdrop");
+  const rowSheet = $("rowSheet");
+  const rowClose = $("rowClose");
+  const rowMeta = $("rowMeta");
+  const rowCopy = $("rowCopy");
+  const rowToggleExcluded = $("rowToggleExcluded");
+  const rowToggleRecurring = $("rowToggleRecurring");
+  const rowDelete = $("rowDelete");
+  let rowActionId = null;
+
+  // Edit sheet
   const editBackdrop = $("editBackdrop");
   const editSheet = $("editSheet");
   const editClose = $("editClose");
@@ -57,13 +116,162 @@ export function createUI({ MONTH_KEY }) {
   const editExcluded = $("editExcluded");
   const editEndMonth = $("editEndMonth");
 
+  // Install
+  const installBtn = $("installBtn");
+  const installBackdrop = $("installBackdrop");
+  const installSheet = $("installSheet");
+  const installClose = $("installClose");
+  const installOk = $("installOk");
+
+  // Toast
+  const toast = $("toast");
+  const toastText = $("toastText");
+  const toastUndo = $("toastUndo");
+
+  // ---------------- Helpers ----------------
+  const MONTH_NAMES = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"];
+
+  function formatMonthPretty(monthKey) {
+    const [y, m] = String(monthKey).split("-");
+    const mm = Number(m);
+    if (!y || !mm || mm < 1 || mm > 12) return "—";
+    return `${MONTH_NAMES[mm - 1]} ${y}`;
+  }
+
+  // UI: MM/YYYY  <-> Storage: YYYY-MM
+  function mmYYYYToYYYYMM(input) {
+    const raw = String(input || "").trim();
+    if (!raw) return "";
+    const m = raw.match(/^(\d{1,2})\s*\/\s*(\d{4})$/);
+    if (!m) return "";
+    const mm = String(m[1]).padStart(2, "0");
+    const yy = String(m[2]);
+    const n = Number(mm);
+    if (!(n >= 1 && n <= 12)) return "";
+    return `${yy}-${mm}`;
+  }
+
+  function yyyyMMToMMYYYY(input) {
+    const raw = String(input || "").trim();
+    if (!raw) return "";
+    const m = raw.match(/^(\d{4})-(\d{2})$/);
+    if (!m) return "";
+    return `${m[2]}/${m[1]}`;
+  }
+
   function sumIncluded(arr) {
     return arr.reduce((acc, e) => acc + (!e.isExcluded ? (e.amountEur || 0) : 0), 0);
   }
+
   function sumExcluded(arr) {
     return arr.reduce((acc, e) => acc + (e.isExcluded ? (e.amountEur || 0) : 0), 0);
   }
 
+  // ---------------- Premium sheets animation ----------------
+  const OPEN_MS = 180;
+
+  function openSheet(backdrop, sheet) {
+    backdrop.style.display = "block";
+    sheet.style.display = "block";
+    requestAnimationFrame(() => {
+      backdrop.classList.add("isOpen");
+      sheet.classList.add("isOpen");
+    });
+  }
+
+  function closeSheet(backdrop, sheet) {
+    backdrop.classList.remove("isOpen");
+    sheet.classList.remove("isOpen");
+    setTimeout(() => {
+      backdrop.style.display = "none";
+      sheet.style.display = "none";
+    }, OPEN_MS);
+  }
+
+  function isAnySheetOpen() {
+    return document.querySelector(".sheet.isOpen") !== null;
+  }
+
+  // ---------------- Theme ----------------
+  function systemPrefersDark() {
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  function applyTheme(mode) {
+    const html = document.documentElement;
+    if (mode === "light") html.setAttribute("data-theme", "light");
+    else if (mode === "dark") html.removeAttribute("data-theme");
+    else {
+      if (systemPrefersDark()) html.removeAttribute("data-theme");
+      else html.setAttribute("data-theme", "light");
+    }
+  }
+  function getSavedTheme() {
+    try { return localStorage.getItem(THEME_KEY) || "auto"; } catch { return "auto"; }
+  }
+  function saveTheme(mode) {
+    try { localStorage.setItem(THEME_KEY, mode); } catch {}
+    applyTheme(mode);
+  }
+  if (window.matchMedia) {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener?.("change", () => {
+      if (getSavedTheme() === "auto") applyTheme("auto");
+    });
+  }
+
+  // ---------------- EndMonth for new recurring ----------------
+  function loadEndMonth() {
+    try { newRecurringEndMonth = localStorage.getItem(END_LS_KEY) || ""; } catch { newRecurringEndMonth = ""; }
+    // keep only YYYY-MM internally
+    if (!/^\d{4}-\d{2}$/.test(newRecurringEndMonth)) newRecurringEndMonth = "";
+  }
+
+  function saveEndMonth(yyyyMM) {
+    newRecurringEndMonth = yyyyMM;
+    try { localStorage.setItem(END_LS_KEY, newRecurringEndMonth); } catch {}
+    renderAddRecurringUI();
+  }
+
+  function renderAddRecurringUI() {
+    const on = !!recurringInput.checked;
+
+    if (!on) {
+      addRow2.style.display = "none";
+      return;
+    }
+
+    addRow2.style.display = "flex";
+
+    const ui = newRecurringEndMonth ? yyyyMMToMMYYYY(newRecurringEndMonth) : "";
+    endMonthLabel.textContent = ui ? ui : "—";
+
+    addHint.textContent = ui
+      ? `Ricorrente: ON • fine ${ui}`
+      : "Ricorrente: ON • fine non impostata";
+  }
+
+  // ---------------- Undo / Toast ----------------
+  function hideToast() { toast.style.display = "none"; }
+  function showToast(message) {
+    toastText.textContent = message;
+    toast.style.display = "flex";
+  }
+  function clearUndo() {
+    undoPayload = null;
+    if (undoTimer) clearTimeout(undoTimer);
+    undoTimer = null;
+    hideToast();
+  }
+  async function applyUndo() {
+    if (!undoPayload) return;
+    const { item } = undoPayload;
+    await dbPut(STORE_EXP, item);
+    clearUndo();
+    await refresh();
+  }
+  toastUndo.onclick = () => { applyUndo().catch(console.error); };
+
+  // ---------------- KPI Render (NO redundancy) ----------------
   function renderKPIs() {
     const limit = Number(settings.monthlyLimitEur) || 0;
     const totalIncluded = sumIncluded(items);
@@ -73,22 +281,29 @@ export function createUI({ MONTH_KEY }) {
     totalEurEl.textContent = `€ ${totalIncluded}`;
     limitEurEl.textContent = `€ ${limit}`;
     remainingEurEl.textContent = `€ ${remaining}`;
-    remainingEurEl.style.color = (limit > 0 && remaining < 0) ? "#ef4444" : "";
+	remainingEurEl.style.color = (limit > 0 && remaining < 0) ? "#ef4444" : "";
 
-    if (limit > 0) {
-      remainingHintEl.textContent = (remaining >= 0)
-        ? `Ti restano € ${remaining} prima di superare la soglia.`
-        : `Sei oltre la soglia di € ${Math.abs(remaining)}.`;
-      const pct = clamp((totalIncluded / limit) * 100, 0, 100);
-      barFill.style.width = `${pct}%`;
-      barHint.textContent = (totalIncluded <= limit)
-        ? `${Math.round(pct)}% della soglia utilizzata.`
-        : `Oltre soglia di € ${totalIncluded - limit}.`;
-    } else {
-      remainingHintEl.textContent = "Imposta una soglia per vedere quanto manca.";
-      barFill.style.width = "0%";
-      barHint.textContent = "Gauge disponibile dopo aver impostato la soglia.";
-    }
+
+    if (limit <= 0) {
+	  statusHintEl.textContent = "ℹ️ Imposta una soglia dal menu ⋯";
+	  barFill.style.width = "0%";
+	} else {
+	  const pct = clamp((totalIncluded / limit) * 100, 0, 100);
+	  barFill.style.width = `${pct}%`;
+
+	  if (remaining < 0) {
+		statusHintEl.textContent = "❗ Sforamento: hai superato il tuo budget. Valuta uso di risparmi (o rateizza).";
+	  } else if (pct < 60) {
+		statusHintEl.textContent = "✅ Budget sotto controllo.";
+	  } else if (pct < 70) {
+		statusHintEl.textContent = "🙂 Direi che per questo mese basta così.";
+	  } else if (pct < 80) {
+		statusHintEl.textContent = "⚠️ Stai spendendo troppo: riduci le spese se vuoi risparmiare.";
+	  } else {
+		statusHintEl.textContent = "🚨 Zona rossa: da qui in poi pesa ogni spesa.";
+	  }
+	}
+
 
     if (totalExcluded > 0) {
       excludedInfoEl.style.display = "block";
@@ -98,9 +313,10 @@ export function createUI({ MONTH_KEY }) {
       excludedInfoEl.textContent = "";
     }
 
-    monthLabel.textContent = `Mese: ${MONTH_KEY}`;
+    monthPill.textContent = formatMonthPretty(MONTH_KEY);
   }
 
+  // ---------------- Filters ----------------
   function passesFilters(e) {
     if (filter === "recurring" && !e.isRecurring) return false;
     if (filter === "once" && e.isRecurring) return false;
@@ -114,15 +330,75 @@ export function createUI({ MONTH_KEY }) {
     return true;
   }
 
+  // ---------------- Data helpers ----------------
+  async function duplicateItem(e) {
+    const { uid } = await import("./utils.js");
+    const copy = { ...e, id: uid(), createdAt: Date.now(), monthKey: MONTH_KEY };
+    await dbPut(STORE_EXP, copy);
+    await refresh();
+  }
+
+  async function deleteWithUndo(e) {
+    clearUndo();
+    undoPayload = { item: { ...e } };
+    await dbDelete(STORE_EXP, e.id);
+    await refresh();
+    showToast("Voce eliminata.");
+    undoTimer = setTimeout(() => { clearUndo(); }, UNDO_MS);
+  }
+
+  async function clearCurrentMonth() {
+    const ok = confirm(`Vuoi eliminare TUTTE le voci di ${MONTH_KEY}? Questa azione non è annullabile.`);
+    if (!ok) return;
+
+    // cancella solo le voci del mese corrente (quelle già in "items")
+    for (const e of items) {
+      await dbDelete(STORE_EXP, e.id);
+    }
+
+    await refresh();
+    alert("Elenco del mese ripulito.");
+  }
+
+  function renderDatalist(labels) {
+    datalist.innerHTML = "";
+    for (const l of labels) {
+      const opt = document.createElement("option");
+      opt.value = l;
+      datalist.appendChild(opt);
+    }
+  }
+
+  // ---------------- Row actions ----------------
+  function openRowActions(id) {
+    rowActionId = id;
+    const e = items.find(x => x.id === id);
+    if (!e) return;
+
+    rowMeta.textContent = `€ ${e.amountEur} • ${e.label}${e.isRecurring ? " • Ricorrente" : ""}${e.isExcluded ? " • Esclusa" : ""}`;
+    openSheet(rowBackdrop, rowSheet);
+  }
+  function closeRowActions() {
+    rowActionId = null;
+    closeSheet(rowBackdrop, rowSheet);
+  }
+
+  // ---------------- List render ----------------
   function renderList() {
     listEl.innerHTML = "";
     const visible = items.filter(passesFilters);
 
     if (visible.length === 0) {
-      const d = document.createElement("div");
-      d.className = "muted";
-      d.textContent = "Nessuna voce.";
-      listEl.appendChild(d);
+      const box = document.createElement("div");
+      box.className = "emptyState";
+      box.innerHTML = `
+        <div class="emptyTitle">Nessuna voce ancora</div>
+        <div class="emptySub">
+          Aggiungi una spesa dal pannello in basso (Importo + Tag + ＋).<br/>
+          Tip: usa tag coerenti (es. “Affitto”, “Benzina”) per filtrare meglio.
+        </div>
+      `;
+      listEl.appendChild(box);
       return;
     }
 
@@ -142,8 +418,8 @@ export function createUI({ MONTH_KEY }) {
       left.style.gap = "6px";
 
       const main = document.createElement("div");
-      main.style.fontWeight = "900";
-      main.style.opacity = e.isExcluded ? "0.75" : "1";
+      main.style.fontWeight = "950";
+      main.style.opacity = e.isExcluded ? "0.78" : "1";
       main.innerHTML = `€ ${e.amountEur} <span class="tag">• ${escapeHtml(e.label)}</span>`;
       left.appendChild(main);
 
@@ -159,11 +435,12 @@ export function createUI({ MONTH_KEY }) {
 
       if (e.isRecurring) {
         const leftMonths = monthsLeftFromEndMonth(MONTH_KEY, e.endMonth || "");
+        const uiEnd = e.endMonth ? yyyyMMToMMYYYY(e.endMonth) : "";
         if (leftMonths !== null && leftMonths > 0) {
           const mm = document.createElement("div");
           mm.className = "pill pillInfo";
           mm.textContent = `*${leftMonths}`;
-          mm.title = `Mesi rimanenti fino a ${normalizeEndMonth(e.endMonth)}`;
+          mm.title = uiEnd ? `Mesi rimanenti (fino a ${uiEnd})` : "Mesi rimanenti";
           metaWrap.appendChild(mm);
         }
       }
@@ -178,43 +455,18 @@ export function createUI({ MONTH_KEY }) {
       left.appendChild(metaWrap);
 
       const right = document.createElement("div");
-      right.className = "row";
+      right.className = "itemRight";
 
-      const exc = document.createElement("button");
-      exc.className = "btn";
-      exc.textContent = e.isExcluded ? "✓" : "Ø";
-      exc.title = e.isExcluded ? "Includi nel totale" : "Escludi dal totale";
-      exc.onclick = async (ev) => {
+      const kebab = document.createElement("button");
+      kebab.className = "rowKebab";
+      kebab.textContent = "⋯";
+      kebab.title = "Azioni";
+      kebab.onclick = (ev) => {
         ev.stopPropagation();
-        e.isExcluded = !e.isExcluded;
-        await dbPut(STORE_EXP, e);
-        await refresh();
+        openRowActions(e.id);
       };
 
-      const tog = document.createElement("button");
-      tog.className = "btn";
-      tog.textContent = e.isRecurring ? "↺" : "1×";
-      tog.title = "Cambia ricorrente/una tantum";
-      tog.onclick = async (ev) => {
-        ev.stopPropagation();
-        e.isRecurring = !e.isRecurring;
-        if (!e.isRecurring) e.endMonth = "";
-        await dbPut(STORE_EXP, e);
-        await refresh();
-      };
-
-      const del = document.createElement("button");
-      del.className = "btn btnDanger";
-      del.textContent = "Elimina";
-      del.onclick = async (ev) => {
-        ev.stopPropagation();
-        await dbDelete(STORE_EXP, e.id);
-        await refresh();
-      };
-
-      right.appendChild(exc);
-      right.appendChild(tog);
-      right.appendChild(del);
+      right.appendChild(kebab);
 
       row.appendChild(left);
       row.appendChild(right);
@@ -222,25 +474,7 @@ export function createUI({ MONTH_KEY }) {
     }
   }
 
-  function renderDatalist(labels) {
-    datalist.innerHTML = "";
-    for (const l of labels) {
-      const opt = document.createElement("option");
-      opt.value = l;
-      datalist.appendChild(opt);
-    }
-  }
-
-  // sheets
-  function openSheet(backdrop, sheet) { backdrop.style.display = "block"; sheet.style.display = "block"; }
-  function closeSheet(backdrop, sheet) { backdrop.style.display = "none"; sheet.style.display = "none"; }
-
-  function openEISheet() { openSheet(eiBackdrop, eiSheet); }
-  function closeEISheet() { closeSheet(eiBackdrop, eiSheet); }
-
-  function openEditSheet() { openSheet(editBackdrop, editSheet); }
-  function closeEditSheet() { closeSheet(editBackdrop, editSheet); editingId = null; }
-
+  // ---------------- Edit sheet ----------------
   function openEdit(id) {
     const e = items.find(x => x.id === id);
     if (!e) return;
@@ -250,23 +484,68 @@ export function createUI({ MONTH_KEY }) {
     editLabel.value = String(e.label || "");
     editRecurring.checked = !!e.isRecurring;
     editExcluded.checked = !!e.isExcluded;
-    editEndMonth.value = e.endMonth || "";
 
+    // show MM/YYYY in UI
+    editEndMonth.value = e.endMonth ? yyyyMMToMMYYYY(e.endMonth) : "";
     editEndMonth.disabled = !editRecurring.checked;
     if (!editRecurring.checked) editEndMonth.value = "";
 
-    openEditSheet();
+    openSheet(editBackdrop, editSheet);
+  }
+  function closeEditSheet() {
+    editingId = null;
+    closeSheet(editBackdrop, editSheet);
   }
 
-  // add endMonth UI
-  function syncAddEndMonthUI() {
-    const on = !!recurringInput.checked;
-    addEndMonthWrap.style.display = on ? "block" : "none";
-    addEndMonth.disabled = !on;
-    if (!on) addEndMonth.value = "";
+  // ---------------- Premium: Topbar shadow + AddBar hide on scroll ----------------
+  function elementContainsActive(el) {
+    const a = document.activeElement;
+    return el && a && el.contains(a);
   }
 
-  // public API
+  function setupScrollUX() {
+    let lastY = window.scrollY;
+    let ticking = false;
+
+    function update() {
+      ticking = false;
+      const y = window.scrollY;
+
+      if (y > 6) topbar.classList.add("scrolled");
+      else topbar.classList.remove("scrolled");
+
+      if (isAnySheetOpen() || elementContainsActive(addBar)) {
+        addBar.classList.remove("hidden");
+        lastY = y;
+        return;
+      }
+
+      const delta = y - lastY;
+      if (delta > 8) addBar.classList.add("hidden");
+      else if (delta < -8) addBar.classList.remove("hidden");
+
+      lastY = y;
+    }
+
+    window.addEventListener("scroll", () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    }, { passive: true });
+
+    update();
+  }
+
+  // ---------------- Install prompt (manual) ----------------
+  function openInstallHelp() {
+    openSheet(installBackdrop, installSheet);
+  }
+  function closeInstallHelp() {
+    closeSheet(installBackdrop, installSheet);
+  }
+
+  // ---------------- Public API ----------------
   async function refresh() {
     settings = (await dbGet(STORE_SET, "main")) || { monthlyLimitEur: 0 };
     items = await listExpensesByMonth(MONTH_KEY);
@@ -279,35 +558,121 @@ export function createUI({ MONTH_KEY }) {
     renderKPIs();
     renderList();
     renderDatalist(await listRecentLabels());
+
+    limitInput.value = String(settings.monthlyLimitEur || 0);
+    renderAddRecurringUI();
   }
 
   function bind() {
-    // settings
+    applyTheme(getSavedTheme());
+    loadEndMonth();
+    monthPill.textContent = formatMonthPretty(MONTH_KEY);
+
+    // Search
+    searchInput.oninput = () => {
+      query = searchInput.value;
+      renderList();
+    };
+
+    // Filter sheet
+    filterBtn.onclick = () => openSheet(filterBackdrop, filterSheet);
+    filterClose.onclick = () => closeSheet(filterBackdrop, filterSheet);
+    filterBackdrop.onclick = () => closeSheet(filterBackdrop, filterSheet);
+
+    filterSheet.querySelectorAll("[data-filter]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        filter = btn.getAttribute("data-filter");
+        closeSheet(filterBackdrop, filterSheet);
+        renderList();
+      });
+    });
+
+    // Menu
+    menuBtn.onclick = () => openSheet(menuBackdrop, menuSheet);
+    menuClose.onclick = () => closeSheet(menuBackdrop, menuSheet);
+    menuBackdrop.onclick = () => closeSheet(menuBackdrop, menuSheet);
+
+    openEIBtn.onclick = () => {
+      closeSheet(menuBackdrop, menuSheet);
+      openSheet(eiBackdrop, eiSheet);
+    };
+	
+	// Ripulisci elenco (mese)
+	clearMonthBtn.onclick = async () => {
+	  closeSheet(menuBackdrop, menuSheet);
+	  await clearCurrentMonth();
+	};
+
+	// Info
+	openInfoBtn.onclick = () => {
+	  closeSheet(menuBackdrop, menuSheet);
+	  openSheet(infoBackdrop, infoSheet);
+	};
+	infoClose.onclick = () => closeSheet(infoBackdrop, infoSheet);
+	infoBackdrop.onclick = () => closeSheet(infoBackdrop, infoSheet);
+
+
+    // Limit (solo dal menu)
+    openLimitBtn.onclick = () => {
+      closeSheet(menuBackdrop, menuSheet);
+      limitInput.value = String(settings.monthlyLimitEur || 0);
+      openSheet(limitBackdrop, limitSheet);
+      limitInput.focus();
+    };
+
+    themeAuto.onclick = () => saveTheme("auto");
+    themeLight.onclick = () => saveTheme("light");
+    themeDark.onclick = () => saveTheme("dark");
+
+    // Limit sheet
+    limitClose.onclick = () => closeSheet(limitBackdrop, limitSheet);
+    limitBackdrop.onclick = () => closeSheet(limitBackdrop, limitSheet);
+
     saveLimitBtn.onclick = async () => {
       const digits = String(limitInput.value || "").replace(/[^\d]/g, "");
       const n = digits ? Math.floor(Number(digits)) : 0;
       settings.monthlyLimitEur = Math.max(0, Number.isFinite(n) ? n : 0);
       await dbPut(STORE_SET, settings, "main");
+      closeSheet(limitBackdrop, limitSheet);
       await refresh();
     };
 
-    // add
-    recurringInput.onchange = syncAddEndMonthUI;
+    // End month sheet (MM/YYYY UI)
+    endMonthBtn.onclick = () => {
+      endInput.value = newRecurringEndMonth ? yyyyMMToMMYYYY(newRecurringEndMonth) : "";
+      openSheet(endBackdrop, endSheet);
+      endInput.focus();
+    };
+    endClose.onclick = () => closeSheet(endBackdrop, endSheet);
+    endBackdrop.onclick = () => closeSheet(endBackdrop, endSheet);
+    endSave.onclick = () => {
+      const rawUI = String(endInput.value || "").trim();
+      if (!rawUI) {
+        saveEndMonth("");
+        closeSheet(endBackdrop, endSheet);
+        return;
+      }
+
+      const yyyyMM = mmYYYYToYYYYMM(rawUI);
+      if (!yyyyMM) return alert("Formato non valido. Usa MM/YYYY (es. 03/2027).");
+
+      saveEndMonth(yyyyMM);
+      closeSheet(endBackdrop, endSheet);
+    };
+
+    // Add: recurring UI toggle shows/hides row2
+    recurringInput.onchange = () => renderAddRecurringUI();
 
     addBtn.onclick = async () => {
-      const { parseAmount, roundUpToEuro, uid, normalizeEndMonth } = await import("./utils.js");
+      const { parseAmount, roundUpToEuro, uid } = await import("./utils.js");
       const parsed = parseAmount(amountInput.value);
       const label = String(labelInput.value || "").trim();
+
       if (parsed === null || parsed <= 0) return alert("Inserisci un importo valido (> 0).");
       if (!label) return alert("Inserisci un tag/descrizione.");
 
       const isRecurring = !!recurringInput.checked;
-      const rawEnd = isRecurring ? String(addEndMonth.value || "").trim() : "";
-      const endMonth = isRecurring ? normalizeEndMonth(rawEnd) : "";
-
-      if (isRecurring && rawEnd && !endMonth) {
-        return alert("Fine ricorrenza non valida. Usa il formato YYYY-MM (es. 2027-03).");
-      }
+      const endMonth = isRecurring ? (newRecurringEndMonth || "") : "";
 
       const e = {
         id: uid(),
@@ -325,25 +690,20 @@ export function createUI({ MONTH_KEY }) {
       amountInput.value = "";
       labelInput.value = "";
       recurringInput.checked = false;
-      addEndMonth.value = "";
-      syncAddEndMonthUI();
+      renderAddRecurringUI();
 
       await refresh();
+      amountInput.focus();
     };
 
-    // filters
-    filterSelect.onchange = () => { filter = filterSelect.value; renderList(); };
-    searchInput.oninput = () => { query = searchInput.value; renderList(); };
-
-    // export/import
-    eiBtn.onclick = openEISheet;
-    eiClose.onclick = closeEISheet;
-    eiBackdrop.onclick = closeEISheet;
+    // Export/Import
+    eiClose.onclick = () => closeSheet(eiBackdrop, eiSheet);
+    eiBackdrop.onclick = () => closeSheet(eiBackdrop, eiSheet);
 
     doExport.onclick = () => {
       const csv = expensesToCSV(MONTH_KEY, items);
       downloadTextFile(`sottosoglia_spese_${MONTH_KEY}.csv`, csv);
-      closeEISheet();
+      closeSheet(eiBackdrop, eiSheet);
     };
 
     doImport.onclick = () => { csvFile.value = ""; csvFile.click(); };
@@ -371,7 +731,7 @@ export function createUI({ MONTH_KEY }) {
           return alert("CSV non riconosciuto. Deve contenere almeno: amount_eur,label");
         }
 
-        const { normalizeEndMonth, uid } = await import("./utils.js");
+        const { uid } = await import("./utils.js");
 
         let imported = 0;
         for (let r = 1; r < table.length; r++) {
@@ -382,9 +742,13 @@ export function createUI({ MONTH_KEY }) {
           const label = String(row[iLbl] ?? "").trim();
           const isRecurring = (iRec !== -1) ? toBool(row[iRec]) : false;
           const isExcluded = (iExc !== -1) ? toBool(row[iExc]) : false;
-          const endMonth = (iEnd !== -1) ? normalizeEndMonth(row[iEnd]) : "";
+
+          // CSV end_month must be YYYY-MM; keep it as-is, validate lightly:
+          const endMonth = (iEnd !== -1) ? String(row[iEnd] ?? "").trim() : "";
+          const endMonthOk = endMonth ? /^\d{4}-\d{2}$/.test(endMonth) : true;
 
           if (amountEur <= 0 || !label) continue;
+          if (!endMonthOk) continue;
 
           let createdAt = Date.now();
           if (iDT !== -1) {
@@ -400,23 +764,60 @@ export function createUI({ MONTH_KEY }) {
             label,
             isRecurring,
             isExcluded,
-            endMonth
+            endMonth: isRecurring ? endMonth : ""
           };
 
           await dbPut(STORE_EXP, e);
           imported++;
         }
 
-        closeEISheet();
+        closeSheet(eiBackdrop, eiSheet);
         await refresh();
-        alert(`Import completato: ${imported} voci aggiunte al mese ${MONTH_KEY}.`);
+        alert(`Import completato: ${imported} voci aggiunte a ${formatMonthPretty(MONTH_KEY)}.`);
       } catch (err) {
         console.error(err);
         alert("Errore durante l'import. Controlla il formato del CSV.");
       }
     };
 
-    // edit
+    // Row actions
+    rowClose.onclick = closeRowActions;
+    rowBackdrop.onclick = closeRowActions;
+
+    rowCopy.onclick = async () => {
+      const e = items.find(x => x.id === rowActionId);
+      if (!e) return;
+      await duplicateItem(e);
+      closeRowActions();
+    };
+
+    rowToggleExcluded.onclick = async () => {
+      const e = items.find(x => x.id === rowActionId);
+      if (!e) return;
+      e.isExcluded = !e.isExcluded;
+      await dbPut(STORE_EXP, e);
+      await refresh();
+      rowMeta.textContent = `€ ${e.amountEur} • ${e.label}${e.isRecurring ? " • Ricorrente" : ""}${e.isExcluded ? " • Esclusa" : ""}`;
+    };
+
+    rowToggleRecurring.onclick = async () => {
+      const e = items.find(x => x.id === rowActionId);
+      if (!e) return;
+      e.isRecurring = !e.isRecurring;
+      if (!e.isRecurring) e.endMonth = "";
+      await dbPut(STORE_EXP, e);
+      await refresh();
+      rowMeta.textContent = `€ ${e.amountEur} • ${e.label}${e.isRecurring ? " • Ricorrente" : ""}${e.isExcluded ? " • Esclusa" : ""}`;
+    };
+
+    rowDelete.onclick = async () => {
+      const e = items.find(x => x.id === rowActionId);
+      if (!e) return;
+      closeRowActions();
+      await deleteWithUndo(e);
+    };
+
+    // Edit
     editClose.onclick = closeEditSheet;
     editCancel.onclick = closeEditSheet;
     editBackdrop.onclick = closeEditSheet;
@@ -429,25 +830,31 @@ export function createUI({ MONTH_KEY }) {
     editSave.onclick = async () => {
       if (!editingId) return;
 
-      const { parseAmount, roundUpToEuro, normalizeEndMonth } = await import("./utils.js");
+      const { parseAmount, roundUpToEuro } = await import("./utils.js");
       const parsed = parseAmount(editAmount.value);
       const label = String(editLabel.value || "").trim();
+
       if (parsed === null || parsed <= 0) return alert("Inserisci un importo valido (> 0).");
       if (!label) return alert("Inserisci un tag/descrizione.");
 
       const e = items.find(x => x.id === editingId);
       if (!e) return;
 
-      const endMonth = editRecurring.checked ? normalizeEndMonth(editEndMonth.value) : "";
-      if (editRecurring.checked && String(editEndMonth.value || "").trim() && !endMonth) {
-        return alert("Fine ricorrenza non valida. Usa il formato YYYY-MM (es. 2027-03).");
+      let endMonth = "";
+      if (editRecurring.checked) {
+        const rawUI = String(editEndMonth.value || "").trim();
+        if (rawUI) {
+          const yyyyMM = mmYYYYToYYYYMM(rawUI);
+          if (!yyyyMM) return alert("Fine ricorrenza non valida. Usa MM/YYYY (es. 03/2027).");
+          endMonth = yyyyMM;
+        }
       }
 
       e.amountEur = roundUpToEuro(parsed);
       e.label = label;
       e.isRecurring = !!editRecurring.checked;
       e.isExcluded = !!editExcluded.checked;
-      e.endMonth = endMonth;
+      e.endMonth = e.isRecurring ? endMonth : "";
 
       await dbPut(STORE_EXP, e);
       closeEditSheet();
@@ -458,19 +865,25 @@ export function createUI({ MONTH_KEY }) {
       if (!editingId) return;
       const e = items.find(x => x.id === editingId);
       if (!e) return;
-
-      await dbDelete(STORE_EXP, e.id);
       closeEditSheet();
-      await refresh();
+      await deleteWithUndo(e);
     };
 
-    // init UI state
-    syncAddEndMonthUI();
+    // Install help (manual)
+    if (installBtn) {
+      installBtn.onclick = () => openInstallHelp();
+      installBackdrop.onclick = () => closeInstallHelp();
+      installClose.onclick = () => closeInstallHelp();
+      installOk.onclick = () => closeInstallHelp();
+    }
+
+    // Toast init
+    hideToast();
+
+    // Initial UI
+    renderAddRecurringUI();
+    setupScrollUX();
   }
 
-  return {
-    bind,
-    refresh,
-    setInitialLimitValue: (v) => { limitInput.value = String(v || 0); }
-  };
+  return { bind, refresh };
 }
