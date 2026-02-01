@@ -34,13 +34,12 @@ html[data-theme="light"]{
   --shadow: 0 10px 25px rgba(15,23,42,.10);
 }
 
-*{ box-sizing: border-box; }
+*{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body{
   margin:0;
   font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
   background: var(--bg);
   color: var(--text);
-  -webkit-tap-highlight-color: transparent;
 }
 
 /* Room for fixed add bar */
@@ -150,13 +149,14 @@ html[data-theme="light"] .topbar.scrolled{
 .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .rowBetween{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
 
-input, select{
+input, select, textarea{
   border: 1px solid var(--border2);
   background: var(--card2);
   color: var(--text);
   border-radius: 12px;
   padding: 10px 12px;
   outline: none;
+  font-size: 16px;
 }
 input{ width: 100%; }
 
@@ -168,12 +168,18 @@ input{ width: 100%; }
   padding: 10px 12px;
   font-weight: 950;
   cursor: pointer;
+  font-size: 16px;
 }
 .btn:active{ transform: translateY(1px); }
 .btnDanger{
   border-color: var(--dangerBorder);
   background: var(--dangerBg);
   color: var(--dangerText);
+}
+
+/* keep all tappable buttons >= 16px to avoid iOS zoom quirks */
+button, .iconBtn, .addBtn, .selBtn, .pillBtn, .rowKebab{
+  font-size: 16px;
 }
 
 /* List items */
@@ -189,6 +195,7 @@ input{ width: 100%; }
   background: color-mix(in srgb, var(--card2) 92%, transparent);
   touch-action: manipulation;
   -webkit-touch-callout: none;
+  user-select: none;
 }
 .item:active{ transform: translateY(1px); }
 .tag{ color: var(--accent1); font-weight: 950; }
@@ -203,6 +210,8 @@ input{ width: 100%; }
 }
 .pillWarn{ color: #f59e0b; }
 .pillInfo{ color: color-mix(in srgb, var(--accent2) 85%, var(--text)); }
+
+.item input, .item button{ user-select: auto; }
 
 .itemRight{ display:flex; align-items:center; gap: 8px; }
 .rowKebab{
@@ -452,7 +461,3 @@ html[data-theme="light"] .addBtn{ color: #0f172a; }
   outline: 2px solid color-mix(in srgb, var(--accent2) 55%, transparent);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent2) 14%, transparent);
 }
-
-/* Optional: avoid accidental text selection on rows (keep inputs/buttons selectable) */
-.item{ user-select: none; }
-.item input, .item button{ user-select: auto; }
