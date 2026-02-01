@@ -19,10 +19,5 @@ ui.bind();
 
 (async () => {
   await ui.refresh();
-
-  // set limit input after load
-  // (ui.refresh reads settings already, but we keep the UX of showing a number)
-  // ui.refresh doesn't expose settings directly; simplest: keep default "0".
-  // If you want: we can make ui.refresh return settings.
   await registerSW();
 })();

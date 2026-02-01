@@ -18,6 +18,10 @@ export function createUI({ MONTH_KEY }) {
   const END_LS_KEY = "sottosoglia_new_endmonth_v2";
   let newRecurringEndMonth = "";
 
+  // Recurring month carry-over (Option B)
+  const RECUR_PROMPT_PREFIX = "sottosoglia_recurring_prompt_v1_"; // + MONTH_KEY
+  const RECUR_PROMPT_KEY = `${RECUR_PROMPT_PREFIX}${MONTH_KEY}`;
+
   // Undo
   const UNDO_MS = 6500;
   let undoTimer = null;
@@ -146,6 +150,21 @@ export function createUI({ MONTH_KEY }) {
     const mm = Number(m);
     if (!y || !mm || mm < 1 || mm > 12) return "—";
     return `${MONTH_NAMES[mm - 1]} ${y}`;
+  }
+
+  function prevMonthKey(monthKey) {
+    const m = String(monthKey).match(/^(\d{4})-(\d{2})$/);
+    if (!m) return "";
+    let y = Number(m[1]);
+    let mm = Number(m[2]);
+    if (!Number.isFinite(y) || !Number.isFinite(mm)) return "";
+    mm -= 1;
+    if (mm === 0) {
+      mm = 12;
+      y -= 1;
+    }
+    const outM = String(mm).padStart(2, "0");
+    return `${y}-${outM}`;
   }
 
   // UI: MM/YYYY  <-> Storage: YYYY-MM
@@ -425,6 +444,86 @@ export function createUI({ MONTH_KEY }) {
     }
   }
 
+  // ---------------- Recurring carry-over (Option B) ----------------
+  function getPromptStatus() {
+    try { return localStorage.getItem(RECUR_PROMPT_KEY) || ""; } catch { return ""; }
+  }
+  function setPromptStatus(val) {
+    try { localStorage.setItem(RECUR_PROMPT_KEY, val); } catch {}
+  }
+
+  function recurringSignature(e) {
+    const amt = Number(e.amountEur || 0);
+    const lbl = String(e.label || "").trim().toLowerCase();
+    const exc = e.isExcluded ? "1" : "0";
+    const end = String(e.endMonth || "").trim();
+    return `${amt}|${lbl}|${exc}|${end}`;
+  }
+
+  function isActiveRecurringForMonth(e, monthKey) {
+    if (!e.isRecurring) return false;
+    const end = String(e.endMonth || "").trim();
+    if (!end) return true;
+    // YYYY-MM lexicographic compare works
+    return end >= monthKey;
+  }
+
+  async function maybeOfferRecurringImport() {
+    const status = getPromptStatus();
+    if (status) return; // already asked this month (imported/skipped)
+
+    const prevKey = prevMonthKey(MONTH_KEY);
+    if (!prevKey) return;
+
+    const prevItems = await listExpensesByMonth(prevKey);
+    const candidates = prevItems.filter(e => isActiveRecurringForMonth(e, MONTH_KEY));
+
+    if (candidates.length === 0) {
+      setPromptStatus("none");
+      return;
+    }
+
+    // build signature set of existing recurring in current month (avoid duplicates)
+    const currentRecurringSigs = new Set(
+      items.filter(e => e.isRecurring).map(recurringSignature)
+    );
+
+    const toImport = candidates.filter(e => !currentRecurringSigs.has(recurringSignature(e)));
+
+    if (toImport.length === 0) {
+      setPromptStatus("none");
+      return;
+    }
+
+    const msg =
+      `Ho trovato ${toImport.length} spese ricorrenti in ${formatMonthPretty(prevKey)}.\n` +
+      `Vuoi importarle in ${formatMonthPretty(MONTH_KEY)}?`;
+
+    const ok = confirm(msg);
+
+    if (!ok) {
+      setPromptStatus("skipped");
+      return;
+    }
+
+    const { uid } = await import("./utils.js");
+
+    // import: copy into current month
+    for (const e of toImport) {
+      const copy = {
+        ...e,
+        id: uid(),
+        monthKey: MONTH_KEY,
+        createdAt: Date.now()
+      };
+      await dbPut(STORE_EXP, copy);
+    }
+
+    setPromptStatus("imported");
+    await refresh();
+    alert(`Importate ${toImport.length} spese ricorrenti nel mese corrente.`);
+  }
+
   // ---------------- Row actions ----------------
   function openRowActions(id) {
     rowActionId = id;
@@ -563,7 +662,6 @@ export function createUI({ MONTH_KEY }) {
       row.addEventListener("touchcancel", () => {
         clearPressTimer();
       });
-
       // ---- /Long press ----
 
       const left = document.createElement("div");
@@ -1076,7 +1174,17 @@ export function createUI({ MONTH_KEY }) {
     // Initial UI
     renderAddRecurringUI();
     setupScrollUX();
+
+    // Offer recurring import once for this month (Option B)
+    // (run after initial refresh in app.js)
   }
 
-  return { bind, refresh };
+  return {
+    bind,
+    refresh: async () => {
+      await refresh();
+      // After refresh, ask once-per-month about importing recurring from previous month
+      try { await maybeOfferRecurringImport(); } catch (e) { console.warn(e); }
+    }
+  };
 }
