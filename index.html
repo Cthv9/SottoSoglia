@@ -102,6 +102,16 @@
         </button>
         <div class="addHint" id="addHint">Ricorrente: ON</div>
       </div>
+
+      <div id="addRow3" style="margin-top:8px;">
+        <select id="paymentMethodInput" style="width:100%;">
+          <option value="">— Metodo di pagamento —</option>
+          <option value="carta">Carta di credito</option>
+          <option value="conto">Conto principale</option>
+          <option value="paypal">PayPal</option>
+          <option value="revolut">Revolut</option>
+        </select>
+      </div>
     </div>
   </footer>
 
@@ -202,7 +212,7 @@
       <button class="btn" id="doExport">Esporta CSV (mese corrente)</button>
       <button class="btn" id="doImport">Importa CSV</button>
       <div class="muted">
-        Importa aggiunge voci al <b>mese corrente</b>. Supporta anche <b>excluded</b> e <b>end_month</b> (CSV usa YYYY-MM).
+        Importa aggiunge voci al <b>mese corrente</b>. Supporta anche <b>excluded</b>, <b>end_month</b> (CSV usa YYYY-MM) e <b>payment_method</b>.
       </div>
     </div>
   </div>
@@ -222,6 +232,12 @@
       <button class="btn" data-filter="once">Una tantum</button>
       <button class="btn" data-filter="included">Conteggiate</button>
       <button class="btn" data-filter="excluded">Escluse</button>
+      <div class="muted" style="margin-top:4px;">Metodo di pagamento</div>
+      <button class="btn" data-filter="pm:carta">Carta di credito</button>
+      <button class="btn" data-filter="pm:conto">Conto principale</button>
+      <button class="btn" data-filter="pm:paypal">PayPal</button>
+      <button class="btn" data-filter="pm:revolut">Revolut</button>
+      <button class="btn" data-filter="pm:none">Non specificato</button>
     </div>
   </div>
 
@@ -270,6 +286,14 @@
         <input type="checkbox" id="editExcluded" />
         <span>Escludi dal totale</span>
       </label>
+
+      <select id="editPaymentMethod">
+        <option value="">— Metodo di pagamento —</option>
+        <option value="carta">Carta di credito</option>
+        <option value="conto">Conto principale</option>
+        <option value="paypal">PayPal</option>
+        <option value="revolut">Revolut</option>
+      </select>
 
       <div class="rowBetween" style="margin-top:6px;">
         <button class="btn btnDanger" id="editDelete">Elimina</button>

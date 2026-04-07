@@ -16,7 +16,7 @@ export function csvEscape(s) {
 }
 
 export function expensesToCSV(monthKey, items) {
-  const header = ["month", "dateTime", "amount_eur", "label", "recurring", "excluded", "end_month"].join(",");
+  const header = ["month", "dateTime", "amount_eur", "label", "recurring", "excluded", "end_month", "payment_method"].join(",");
   const rows = items.map(e => {
     const dt = new Date(e.createdAt).toISOString();
     return [
@@ -26,7 +26,8 @@ export function expensesToCSV(monthKey, items) {
       csvEscape(e.label),
       e.isRecurring ? "true" : "false",
       e.isExcluded ? "true" : "false",
-      csvEscape(e.endMonth || "")
+      csvEscape(e.endMonth || ""),
+      csvEscape(e.paymentMethod || "")
     ].join(",");
   });
   return [header, ...rows].join("\n");
