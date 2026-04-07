@@ -1,32 +1,57 @@
-# SottoSoglia
-Easy budget-calculator | By DF
+# SottoSoglia — App Android & iOS
 
-**SottoSoglia** è una App semplice e leggera per tenere sotto controllo le **spese mensili**.
+Budget tracking app with a monthly threshold. Built with Expo (React Native).
 
-L’app è pensata per un uso **personale**, **offline** e **mobile-first**.  
-Tutti i dati restano **in locale nel browser**.
+## Tech stack
 
-## Funzionalità
-- Inserimento rapido delle spese
-- Tag/descrizione per ogni voce
-- Spese ricorrenti o una tantum
-- Arrotondamento per eccesso all’euro
-- Totale mensile e confronto con una soglia
-- Esportazione/Importazione CSV
-- Installabile come app (PWA)
-- Funziona offline
+- **Expo** ~52 + Expo Router
+- **expo-sqlite** — offline-first local storage
+- **Zustand** — state management
+- **react-native-iap** — one-time in-app purchase
+- **i18next** — Italian + English localization
+- **EAS Build** — cloud builds (no Mac required)
 
-## Tecnologia
-- HTML, CSS e JavaScript
-- Nessun framework
-- Nessun backend
-- Nessuna build
+## Features
 
-## Privacy
-Nessun account, nessun tracking, nessun dato inviato a server esterni.
+| Feature | Free | Unlocked |
+|---------|------|----------|
+| Monthly threshold tracking | ✓ | ✓ |
+| Add expenses (up to 5) | ✓ | ✓ |
+| Recurring / one-time | ✓ | ✓ |
+| Exclude from total | ✓ | ✓ |
+| Multi-select + sum | ✓ | ✓ |
+| Undo delete | ✓ | ✓ |
+| Dark / light / auto theme | ✓ | ✓ |
+| Unlimited expenses | — | ✓ |
+| Filters | — | ✓ |
+| CSV export / import | — | ✓ |
 
+## Development
 
-## 🚀 Demo
-🌐 **App online:** https://cthv9.github.io/SottoSoglia/  
-📱 **Installabile come PWA** su mobile e desktop
+```bash
+npm install
+npx expo start
+```
 
+## Building
+
+```bash
+# Android (APK for testing)
+eas build --platform android --profile preview
+
+# Production
+eas build --platform all --profile production
+```
+
+## Store setup
+
+- Android: Google Play Console ($25 one-time)
+- iOS: Apple Developer Program (€99/year) — EAS handles certificates without a Mac
+
+## In-App Purchase
+
+Product ID: `sottosoglia_unlock`
+
+Register this product in both:
+- Google Play Console → Monetization → In-app products
+- App Store Connect → In-App Purchases
