@@ -30,6 +30,15 @@ export function createUI({ MONTH_KEY }) {
   // Theme
   const THEME_KEY = "sottosoglia_theme_v1"; // auto|light|dark
 
+  // ---------------- Payment methods ----------------
+  const PAYMENT_METHODS = {
+    carta:   "Carta di credito",
+    conto:   "Conto principale",
+    paypal:  "PayPal",
+    revolut: "Revolut",
+  };
+  const PAYMENT_METHOD_KEYS = ["carta", "conto", "paypal", "revolut"];
+
   // ---------------- Refs ----------------
   const topbar = $("topbar");
   const addBar = $("addBar");
@@ -129,6 +138,8 @@ export function createUI({ MONTH_KEY }) {
   const editRecurring = $("editRecurring");
   const editExcluded = $("editExcluded");
   const editEndMonth = $("editEndMonth");
+  const paymentMethodInput = $("paymentMethodInput");
+  const editPaymentMethod  = $("editPaymentMethod");
 
   // Install
   const installBtn = $("installBtn");
@@ -399,6 +410,12 @@ export function createUI({ MONTH_KEY }) {
     if (filter === "excluded" && !e.isExcluded) return false;
     if (filter === "included" && e.isExcluded) return false;
 
+    if (filter.startsWith("pm:")) {
+      const key = filter.slice(3);
+      if (key === "none") { if (e.paymentMethod) return false; }
+      else                { if (e.paymentMethod !== key) return false; }
+    }
+
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       if (!String(e.label || "").toLowerCase().includes(q)) return false;
@@ -605,6 +622,13 @@ export function createUI({ MONTH_KEY }) {
         metaWrap.appendChild(ex);
       }
 
+      if (e.paymentMethod && PAYMENT_METHODS[e.paymentMethod]) {
+        const pm = document.createElement("div");
+        pm.className = "pill pillPay";
+        pm.textContent = PAYMENT_METHODS[e.paymentMethod];
+        metaWrap.appendChild(pm);
+      }
+
       left.appendChild(metaWrap);
 
       const right = document.createElement("div");
@@ -641,6 +665,8 @@ export function createUI({ MONTH_KEY }) {
     editEndMonth.value = e.endMonth ? yyyyMMToMMYYYY(e.endMonth) : "";
     editEndMonth.disabled = !editRecurring.checked;
     if (!editRecurring.checked) editEndMonth.value = "";
+
+    editPaymentMethod.value = e.paymentMethod || "";
 
     openSheet(editBackdrop, editSheet);
   }
@@ -796,6 +822,7 @@ export function createUI({ MONTH_KEY }) {
     for (const e of items) {
       if (typeof e.isExcluded !== "boolean") e.isExcluded = false;
       if (typeof e.endMonth !== "string") e.endMonth = "";
+      if (typeof e.paymentMethod !== "string") e.paymentMethod = "";
     }
 
     renderKPIs();
@@ -951,7 +978,8 @@ export function createUI({ MONTH_KEY }) {
         label,
         isRecurring,
         isExcluded: false,
-        endMonth
+        endMonth,
+        paymentMethod: paymentMethodInput.value || ""
       };
 
       await dbPut(STORE_EXP, e);
@@ -959,6 +987,7 @@ export function createUI({ MONTH_KEY }) {
       amountInput.value = "";
       labelInput.value = "";
       recurringInput.checked = false;
+      paymentMethodInput.value = "";
       renderAddRecurringUI();
 
       await refresh();
@@ -995,6 +1024,7 @@ export function createUI({ MONTH_KEY }) {
         const iExc = idx("excluded");
         const iEnd = idx("end_month");
         const iDT  = idx("datetime");
+        const iPM  = idx("payment_method");
 
         if (iAmt === -1 || iLbl === -1) {
           return alert("CSV non riconosciuto. Deve contenere almeno: amount_eur,label");
@@ -1015,6 +1045,9 @@ export function createUI({ MONTH_KEY }) {
           const endMonth = (iEnd !== -1) ? String(row[iEnd] ?? "").trim() : "";
           const endMonthOk = endMonth ? /^\d{4}-\d{2}$/.test(endMonth) : true;
 
+          const paymentMethod = (iPM !== -1) ? String(row[iPM] ?? "").trim() : "";
+          const paymentMethodOk = !paymentMethod || PAYMENT_METHOD_KEYS.includes(paymentMethod);
+
           if (amountEur <= 0 || !label) continue;
           if (!endMonthOk) continue;
 
@@ -1032,7 +1065,8 @@ export function createUI({ MONTH_KEY }) {
             label,
             isRecurring,
             isExcluded,
-            endMonth: isRecurring ? endMonth : ""
+            endMonth: isRecurring ? endMonth : "",
+            paymentMethod: paymentMethodOk ? paymentMethod : ""
           });
         }
 
@@ -1123,6 +1157,7 @@ export function createUI({ MONTH_KEY }) {
       e.isRecurring = !!editRecurring.checked;
       e.isExcluded = !!editExcluded.checked;
       e.endMonth = e.isRecurring ? endMonth : "";
+      e.paymentMethod = editPaymentMethod.value || "";
 
       await dbPut(STORE_EXP, e);
       closeEditSheet();

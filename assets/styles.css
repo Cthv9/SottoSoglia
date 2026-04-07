@@ -216,6 +216,7 @@ button, .iconBtn, .addBtn, .selBtn, .pillBtn, .rowKebab{
 }
 .pillWarn{ color: #f59e0b; }
 .pillInfo{ color: color-mix(in srgb, var(--accent2) 85%, var(--text)); }
+.pillPay{ color: color-mix(in srgb, #34d399 85%, var(--text)); }
 
 .item input, .item button{ user-select: auto; }
 
