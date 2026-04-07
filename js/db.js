@@ -3,6 +3,8 @@ const DB_VERSION = 1;
 export const STORE_EXP = "expenses";
 export const STORE_SET = "settings";
 
+let _labelCache = null;
+
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -33,6 +35,7 @@ export async function dbGet(store, key) {
 }
 
 export async function dbPut(store, value, key) {
+  if (store === STORE_EXP) _labelCache = null;
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(store, "readwrite");
@@ -44,6 +47,7 @@ export async function dbPut(store, value, key) {
 }
 
 export async function dbDelete(store, key) {
+  if (store === STORE_EXP) _labelCache = null;
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(store, "readwrite");
@@ -69,6 +73,7 @@ export async function listExpensesByMonth(monthKey) {
 }
 
 export async function listRecentLabels(limit = 12) {
+  if (_labelCache) return _labelCache;
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_EXP, "readonly");
@@ -83,8 +88,22 @@ export async function listRecentLabels(limit = 12) {
         if (!uniq.includes(lbl)) uniq.push(lbl);
         if (uniq.length >= limit) break;
       }
+      _labelCache = uniq;
       resolve(uniq);
     };
     req.onerror = () => reject(req.error);
+  });
+}
+
+export async function dbPutBatch(store, items) {
+  if (!items.length) return;
+  if (store === STORE_EXP) _labelCache = null;
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, "readwrite");
+    const os = tx.objectStore(store);
+    for (const item of items) os.put(item);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
   });
 }

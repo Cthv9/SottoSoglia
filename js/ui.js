@@ -1,5 +1,5 @@
-import { $, clamp, escapeHtml, monthsLeftFromEndMonth } from "./utils.js";
-import { STORE_EXP, STORE_SET, dbGet, dbPut, dbDelete, listExpensesByMonth, listRecentLabels } from "./db.js";
+import { $, clamp, escapeHtml, monthsLeftFromEndMonth, debounce } from "./utils.js";
+import { STORE_EXP, STORE_SET, dbGet, dbPut, dbDelete, dbPutBatch, listExpensesByMonth, listRecentLabels } from "./db.js";
 import { downloadTextFile, expensesToCSV, parseCSV, toBool, toInt } from "./csv.js";
 
 export function createUI({ MONTH_KEY }) {
@@ -560,109 +560,10 @@ export function createUI({ MONTH_KEY }) {
     for (const e of visible) {
       const row = document.createElement("div");
       row.className = "item";
+      row.dataset.id = e.id;
       row.style.cursor = "pointer";
 
       if (selectedIds.has(e.id)) row.classList.add("selected");
-
-      row.onclick = (ev) => {
-        if (ev.target && ev.target.closest && ev.target.closest("button")) return;
-
-        if (selectionMode) {
-          toggleSelected(e.id);
-          row.classList.toggle("selected");
-          return;
-        }
-
-        openEdit(e.id);
-      };
-
-      // ---- Long press (Android + iOS robust) ----
-      let pressTimer = null;
-      let startX = 0;
-      let startY = 0;
-      let didLongPress = false;
-
-      function clearPressTimer() {
-        if (pressTimer) clearTimeout(pressTimer);
-        pressTimer = null;
-      }
-
-      function startPress(ev, x, y) {
-        if (ev.target && ev.target.closest && ev.target.closest("button")) return;
-
-        startX = x;
-        startY = y;
-        didLongPress = false;
-
-        clearPressTimer();
-        pressTimer = setTimeout(() => {
-          didLongPress = true;
-
-          if (!selectionMode) {
-            openSelectionMode(e.id);
-          } else {
-            toggleSelected(e.id);
-            row.classList.toggle("selected");
-          }
-        }, LONG_PRESS_MS);
-      }
-
-      function movePress(x, y) {
-        const dx = Math.abs(x - startX);
-        const dy = Math.abs(y - startY);
-        if (dx > 12 || dy > 12) clearPressTimer(); // cancella su scroll/drag reale
-      }
-
-      function endPress(ev) {
-        clearPressTimer();
-        if (didLongPress) {
-          ev.preventDefault?.();
-          ev.stopPropagation?.();
-        }
-      }
-
-      // Pointer events (desktop + Android)
-      row.addEventListener("pointerdown", (ev) => {
-        startPress(ev, ev.clientX, ev.clientY);
-      });
-
-      row.addEventListener("pointermove", (ev) => {
-        movePress(ev.clientX, ev.clientY);
-      });
-
-      row.addEventListener("pointerup", (ev) => {
-        endPress(ev);
-      });
-
-      row.addEventListener("pointercancel", () => {
-        clearPressTimer();
-      });
-
-      row.addEventListener("pointerleave", () => {
-        clearPressTimer();
-      });
-
-      // Touch fallback (iOS Safari)
-      row.addEventListener("touchstart", (ev) => {
-        if (!ev.touches || ev.touches.length !== 1) return;
-        const t = ev.touches[0];
-        startPress(ev, t.clientX, t.clientY);
-      }, { passive: false });
-
-      row.addEventListener("touchmove", (ev) => {
-        if (!ev.touches || ev.touches.length !== 1) return;
-        const t = ev.touches[0];
-        movePress(t.clientX, t.clientY);
-      }, { passive: true });
-
-      row.addEventListener("touchend", (ev) => {
-        endPress(ev);
-      }, { passive: false });
-
-      row.addEventListener("touchcancel", () => {
-        clearPressTimer();
-      });
-      // ---- /Long press ----
 
       const left = document.createElement("div");
       left.style.display = "flex";
@@ -803,6 +704,90 @@ export function createUI({ MONTH_KEY }) {
     closeSheet(installBackdrop, installSheet);
   }
 
+  // ---------------- List event delegation ----------------
+  function updateRowSelectedClass(id) {
+    const row = listEl.querySelector(`[data-id="${id}"]`);
+    if (!row) return;
+    row.classList.toggle("selected", selectedIds.has(id));
+  }
+
+  function setupListDelegation() {
+    let pressTimer = null;
+    let startX = 0, startY = 0;
+    let didLongPress = false;
+
+    function getId(target) {
+      return target.closest?.("[data-id]")?.dataset.id ?? null;
+    }
+
+    function clearPress() {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    }
+
+    // Pointer events (desktop + Android)
+    listEl.addEventListener("pointerdown", (ev) => {
+      const id = getId(ev.target);
+      if (!id || ev.target.closest("button")) return;
+      startX = ev.clientX; startY = ev.clientY; didLongPress = false;
+      clearPress();
+      pressTimer = setTimeout(() => {
+        didLongPress = true;
+        if (!selectionMode) openSelectionMode(id);
+        else { toggleSelected(id); updateRowSelectedClass(id); }
+      }, LONG_PRESS_MS);
+    });
+
+    listEl.addEventListener("pointermove", (ev) => {
+      if (!pressTimer) return;
+      if (Math.abs(ev.clientX - startX) > 12 || Math.abs(ev.clientY - startY) > 12) clearPress();
+    });
+
+    listEl.addEventListener("pointerup", (ev) => {
+      clearPress();
+      if (didLongPress) { ev.preventDefault?.(); ev.stopPropagation?.(); }
+    });
+
+    listEl.addEventListener("pointercancel", clearPress);
+    listEl.addEventListener("pointerleave", clearPress);
+
+    // Touch fallback (iOS Safari)
+    listEl.addEventListener("touchstart", (ev) => {
+      if (ev.touches.length !== 1) return;
+      const id = getId(ev.target);
+      if (!id || ev.target.closest("button")) return;
+      const t = ev.touches[0];
+      startX = t.clientX; startY = t.clientY; didLongPress = false;
+      clearPress();
+      pressTimer = setTimeout(() => {
+        didLongPress = true;
+        if (!selectionMode) openSelectionMode(id);
+        else { toggleSelected(id); updateRowSelectedClass(id); }
+      }, LONG_PRESS_MS);
+    }, { passive: false });
+
+    listEl.addEventListener("touchmove", (ev) => {
+      if (!ev.touches || ev.touches.length !== 1 || !pressTimer) return;
+      const t = ev.touches[0];
+      if (Math.abs(t.clientX - startX) > 12 || Math.abs(t.clientY - startY) > 12) clearPress();
+    }, { passive: true });
+
+    listEl.addEventListener("touchend", (ev) => {
+      clearPress();
+      if (didLongPress) { ev.preventDefault?.(); ev.stopPropagation?.(); }
+    }, { passive: false });
+
+    listEl.addEventListener("touchcancel", clearPress);
+
+    // Click delegation
+    listEl.addEventListener("click", (ev) => {
+      const id = getId(ev.target);
+      if (!id || ev.target.closest("button") || didLongPress) return;
+      if (selectionMode) { toggleSelected(id); updateRowSelectedClass(id); return; }
+      openEdit(id);
+    });
+  }
+
   // ---------------- Public API ----------------
   async function refresh() {
     settings = (await dbGet(STORE_SET, "main")) || { monthlyLimitEur: 0 };
@@ -823,6 +808,7 @@ export function createUI({ MONTH_KEY }) {
   }
 
   function bind() {
+    setupListDelegation();
     applyTheme(getSavedTheme());
     loadEndMonth();
     monthPill.textContent = formatMonthPretty(MONTH_KEY);
@@ -853,10 +839,10 @@ export function createUI({ MONTH_KEY }) {
     }
 
     // Search
-    searchInput.oninput = () => {
+    searchInput.oninput = debounce(() => {
       query = searchInput.value;
       renderList();
-    };
+    }, 180);
 
     // Filter sheet
     filterBtn.onclick = () => openSheet(filterBackdrop, filterSheet);
@@ -1016,7 +1002,7 @@ export function createUI({ MONTH_KEY }) {
 
         const { uid } = await import("./utils.js");
 
-        let imported = 0;
+        const batch = [];
         for (let r = 1; r < table.length; r++) {
           const row = table[r];
           if (!row || row.length === 0) continue;
@@ -1038,7 +1024,7 @@ export function createUI({ MONTH_KEY }) {
             if (!Number.isNaN(d.getTime())) createdAt = d.getTime();
           }
 
-          const e = {
+          batch.push({
             id: uid(),
             monthKey: MONTH_KEY,
             createdAt,
@@ -1047,11 +1033,11 @@ export function createUI({ MONTH_KEY }) {
             isRecurring,
             isExcluded,
             endMonth: isRecurring ? endMonth : ""
-          };
-
-          await dbPut(STORE_EXP, e);
-          imported++;
+          });
         }
+
+        await dbPutBatch(STORE_EXP, batch);
+        const imported = batch.length;
 
         closeSheet(eiBackdrop, eiSheet);
         await refresh();
