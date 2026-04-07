@@ -63,3 +63,8 @@ export function monthsLeftFromEndMonth(currentMonthKey, endMonth) {
   if (n === null) return null;
   return n; // can be <= 0
 }
+
+export function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
