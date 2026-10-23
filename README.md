@@ -1,32 +1,48 @@
 # SottoSoglia
-Easy budget-calculator | By DF
 
-**SottoSoglia** è una App semplice e leggera per tenere sotto controllo le **spese mensili**.
+Calcolatrice per le spese mensili: inserisci le spese con un tag, imposta una soglia e vedi quanto resta. Funziona offline e i dati restano sul tuo dispositivo.
 
-L’app è pensata per un uso **personale**, **offline** e **mobile-first**.  
-Tutti i dati restano **in locale nel browser**.
+**App in uso:** https://cthv9.github.io/SottoSoglia/
+**Anteprima dello sviluppo:** https://cthv9.github.io/SottoSoglia/preview/ (con banner in alto)
 
-## Funzionalità
-- Inserimento rapido delle spese
-- Tag/descrizione per ogni voce
-- Spese ricorrenti o una tantum
-- Arrotondamento per eccesso all’euro
-- Totale mensile e confronto con una soglia
-- Esportazione/Importazione CSV
-- Installabile come app (PWA)
-- Funziona offline
+## Funzioni
 
-## Tecnologia
-- HTML, CSS e JavaScript
-- Nessun framework
-- Nessun backend
-- Nessuna build
+- Spese con importo, tag e metodo di pagamento (carta, conto, PayPal, Revolut).
+- Spese ricorrenti con data di fine, riportate dal mese precedente.
+- Esclusione di una spesa dal totale, selezione multipla con somma.
+- Filtri per tag, metodo di pagamento, ricorrenza ed esclusione.
+- Esportazione e importazione CSV del mese corrente.
+- Tema automatico, chiaro o scuro.
+- Installabile come app dalla schermata Home, funziona offline.
+
+## Installazione
+
+- **iPhone o iPad:** apri il link in Safari, tocca Condividi, poi *Aggiungi a schermata Home*.
+- **Android:** apri il link in Chrome, poi *Installa app* dal menu.
 
 ## Privacy
-Nessun account, nessun tracking, nessun dato inviato a server esterni.
 
+Nessun account, nessun tracciamento, nessun dato inviato a server. Le spese sono salvate nel browser del dispositivo. Dettagli in [PRIVACY.md](PRIVACY.md).
 
-## 🚀 Demo
-🌐 **App online:** https://cthv9.github.io/SottoSoglia/  
-📱 **Installabile come PWA** su mobile e desktop
+## Sviluppo
 
+Il progetto non ha build né dipendenze. Per provarlo in locale:
+
+```bash
+python3 -m http.server 8000
+```
+
+poi apri `http://localhost:8000`. Per il service worker usa l'anteprima pubblicata, perché in locale il nome della cache è un segnaposto.
+
+### Flusso di lavoro
+
+- `main` è la versione in uso. Non si committa direttamente.
+- Lo sviluppo avviene sul branch `ccr-7690d7fe-l4wzjz`. Ogni push pubblica l'anteprima su `/preview/`.
+- Un push su `main` pubblica la versione in uso.
+- Un tag `v<versione>` crea una Release con le note prese da [CHANGELOG.md](CHANGELOG.md).
+
+Dettagli in [CONTRIBUTING.md](CONTRIBUTING.md). Conformità CRA e AI Act in [COMPLIANCE.md](COMPLIANCE.md). Segnalazione di vulnerabilità in [SECURITY.md](SECURITY.md).
+
+## Licenza
+
+Tutti i diritti riservati. Vedi [LICENSE](LICENSE).
