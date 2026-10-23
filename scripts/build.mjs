@@ -34,12 +34,22 @@ function copyWebFiles(src, dest) {
   }
 }
 
+// Imposta nome e famiglia della cache. Il sw.js della pipeline ha dei segnaposto;
+// quello precedente (il main prima del merge) ha solo "const CACHE = ...".
+function stampCache(sw, name, family) {
+  if (sw.includes('"__CACHE_NAME__"')) {
+    sw = replaceOnce(sw, `"__CACHE_NAME__"`, `"${name}"`, "sw.js");
+    return replaceOnce(sw, `"__CACHE_FAMILY__"`, `"${family}"`, "sw.js");
+  }
+  const decl = sw.match(/^const CACHE = .*;$/gm) || [];
+  if (decl.length !== 1) throw new Error(`sw.js: dichiarazione di CACHE trovata ${decl.length} volte, attesa 1`);
+  return sw.replace(/^const CACHE = .*;$/m, `const CACHE = "${name}";\nconst CACHE_FAMILY = "${family}";`);
+}
+
 function buildProduction({ src, id, dest }) {
   copyWebFiles(src, dest);
   const swPath = path.join(dest, "sw.js");
-  let sw = fs.readFileSync(swPath, "utf8");
-  sw = replaceOnce(sw, `"__CACHE_NAME__"`, `"sottosoglia-${id}"`, "sw.js");
-  sw = replaceOnce(sw, `"__CACHE_FAMILY__"`, `"sottosoglia-"`, "sw.js");
+  const sw = stampCache(fs.readFileSync(swPath, "utf8"), `sottosoglia-${id}`, "sottosoglia-");
   fs.writeFileSync(swPath, sw);
 }
 
@@ -77,9 +87,7 @@ function buildPreview({ src, id, dest }) {
   if (renamed === 0) throw new Error("nessuna chiave dati trovata da separare nell'anteprima");
 
   const swPath = path.join(dest, "sw.js");
-  let sw = fs.readFileSync(swPath, "utf8");
-  sw = replaceOnce(sw, `"__CACHE_NAME__"`, `"preview-sottosoglia-${id}"`, "sw.js");
-  sw = replaceOnce(sw, `"__CACHE_FAMILY__"`, `"preview-sottosoglia-"`, "sw.js");
+  const sw = stampCache(fs.readFileSync(swPath, "utf8"), `preview-sottosoglia-${id}`, "preview-sottosoglia-");
   fs.writeFileSync(swPath, sw);
 }
 
