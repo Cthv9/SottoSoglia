@@ -1,4 +1,4 @@
-import { $, clamp, escapeHtml, monthsLeftFromEndMonth, debounce } from "./utils.js";
+import { $, clamp, escapeHtml, monthsLeftFromEndMonth, debounce, uid, parseAmount, roundUpToEuro } from "./utils.js";
 import { STORE_EXP, STORE_SET, dbGet, dbPut, dbDelete, dbPutBatch, listExpensesByMonth, listRecentLabels } from "./db.js";
 import { downloadTextFile, expensesToCSV, parseCSV, toBool, toInt } from "./csv.js";
 
@@ -425,7 +425,6 @@ export function createUI({ MONTH_KEY }) {
 
   // ---------------- Data helpers ----------------
   async function duplicateItem(e) {
-    const { uid } = await import("./utils.js");
     const copy = { ...e, id: uid(), createdAt: Date.now(), monthKey: MONTH_KEY };
     await dbPut(STORE_EXP, copy);
     await refresh();
@@ -523,7 +522,6 @@ export function createUI({ MONTH_KEY }) {
       return;
     }
 
-    const { uid } = await import("./utils.js");
 
     // import: copy into current month
     for (const e of toImport) {
@@ -542,12 +540,16 @@ export function createUI({ MONTH_KEY }) {
   }
 
   // ---------------- Row actions ----------------
+  function rowMetaText(e) {
+    return `€ ${e.amountEur} • ${e.label}${e.isRecurring ? " • Ricorrente" : ""}${e.isExcluded ? " • Esclusa" : ""}`;
+  }
+
   function openRowActions(id) {
     rowActionId = id;
     const e = items.find(x => x.id === id);
     if (!e) return;
 
-    rowMeta.textContent = `€ ${e.amountEur} • ${e.label}${e.isRecurring ? " • Ricorrente" : ""}${e.isExcluded ? " • Esclusa" : ""}`;
+    rowMeta.textContent = rowMetaText(e);
     openSheet(rowBackdrop, rowSheet);
   }
   function closeRowActions() {
@@ -960,7 +962,6 @@ export function createUI({ MONTH_KEY }) {
     recurringInput.onchange = () => renderAddRecurringUI();
 
     addBtn.onclick = async () => {
-      const { parseAmount, roundUpToEuro, uid } = await import("./utils.js");
       const parsed = parseAmount(amountInput.value);
       const label = String(labelInput.value || "").trim();
 
@@ -1030,7 +1031,6 @@ export function createUI({ MONTH_KEY }) {
           return alert("CSV non riconosciuto. Deve contenere almeno: amount_eur,label");
         }
 
-        const { uid } = await import("./utils.js");
 
         const batch = [];
         for (let r = 1; r < table.length; r++) {
@@ -1099,7 +1099,7 @@ export function createUI({ MONTH_KEY }) {
       e.isExcluded = !e.isExcluded;
       await dbPut(STORE_EXP, e);
       await refresh();
-      rowMeta.textContent = `€ ${e.amountEur} • ${e.label}${e.isRecurring ? " • Ricorrente" : ""}${e.isExcluded ? " • Esclusa" : ""}`;
+      rowMeta.textContent = rowMetaText(e);
     };
 
     rowToggleRecurring.onclick = async () => {
@@ -1109,7 +1109,7 @@ export function createUI({ MONTH_KEY }) {
       if (!e.isRecurring) e.endMonth = "";
       await dbPut(STORE_EXP, e);
       await refresh();
-      rowMeta.textContent = `€ ${e.amountEur} • ${e.label}${e.isRecurring ? " • Ricorrente" : ""}${e.isExcluded ? " • Esclusa" : ""}`;
+      rowMeta.textContent = rowMetaText(e);
     };
 
     rowDelete.onclick = async () => {
@@ -1132,7 +1132,6 @@ export function createUI({ MONTH_KEY }) {
     editSave.onclick = async () => {
       if (!editingId) return;
 
-      const { parseAmount, roundUpToEuro } = await import("./utils.js");
       const parsed = parseAmount(editAmount.value);
       const label = String(editLabel.value || "").trim();
 
