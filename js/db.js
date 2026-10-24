@@ -74,6 +74,15 @@ export async function listExpensesByMonth(monthKey) {
   });
 }
 
+export async function listAllExpenses() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE_EXP, "readonly").objectStore(STORE_EXP).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 export async function listRecentLabels(limit = 12) {
   if (_labelCache) return _labelCache;
   const db = await openDB();

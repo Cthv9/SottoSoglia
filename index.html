@@ -28,7 +28,11 @@
       </div>
 
       <div class="topbarRight">
-        <div class="monthPill" id="monthPill">—</div>
+        <div class="monthNav">
+          <button class="monthArrow" id="monthPrev" type="button" aria-label="Mese precedente">‹</button>
+          <button class="monthPill" id="monthPill" type="button" aria-label="Riepilogo dei mesi">—</button>
+          <button class="monthArrow" id="monthNext" type="button" aria-label="Mese successivo">›</button>
+        </div>
         <button class="iconBtn" id="installBtn" style="display:none;" aria-label="Installa">⬇︎</button>
         <button class="iconBtn" id="menuBtn" aria-label="Menu">⋯</button>
       </div>
@@ -212,10 +216,10 @@
       <button class="btn" id="eiClose">Chiudi</button>
     </div>
     <div style="display:grid; gap:10px; margin-top:12px;">
-      <button class="btn" id="doExport">Esporta CSV (mese corrente)</button>
+      <button class="btn" id="doExport">Esporta CSV (mese visualizzato)</button>
       <button class="btn" id="doImport">Importa CSV</button>
       <div class="muted">
-        Importa aggiunge voci al <b>mese corrente</b>. Supporta anche <b>excluded</b>, <b>end_month</b> (CSV usa YYYY-MM) e <b>payment_method</b>.
+        Importa aggiunge voci al <b>mese visualizzato</b>. Supporta anche <b>excluded</b>, <b>end_month</b> (CSV usa YYYY-MM) e <b>payment_method</b>.
       </div>
     </div>
   </div>
@@ -242,6 +246,20 @@
       <button class="btn" data-filter="pm:revolut">Revolut</button>
       <button class="btn" data-filter="pm:none">Non specificato</button>
     </div>
+  </div>
+
+  <!-- Months overview sheet -->
+  <div id="monthsBackdrop" class="backdrop"></div>
+  <div id="monthsSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Riepilogo dei mesi">
+    <div class="rowBetween">
+      <div class="sheetTitle">Mesi</div>
+      <div class="row">
+        <button class="btn" id="monthsToday" type="button">Oggi</button>
+        <button class="btn" id="monthsClose" type="button">Chiudi</button>
+      </div>
+    </div>
+    <div class="muted" style="margin-top:10px;">Totale conteggiato rispetto alla soglia. Tocca un mese per aprirlo.</div>
+    <div class="monthsList" id="monthsList"></div>
   </div>
 
   <!-- Row Actions sheet -->

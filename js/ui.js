@@ -1,14 +1,15 @@
 import { $, NS, clamp, escapeHtml, monthsLeftFromEndMonth, debounce, uid, parseAmount, roundUpToEuro } from "./utils.js";
-import { STORE_EXP, STORE_SET, dbGet, dbPut, dbDelete, dbPutBatch, listExpensesByMonth, listRecentLabels } from "./db.js";
+import { STORE_EXP, STORE_SET, dbGet, dbPut, dbDelete, dbPutBatch, listExpensesByMonth, listAllExpenses, listRecentLabels } from "./db.js";
 import { downloadTextFile, expensesToCSV, parseCSV, toBool, toInt } from "./csv.js";
 
-export function createUI({ MONTH_KEY }) {
+export function createUI({ TODAY_KEY }) {
   // ---------------- State ----------------
   let settings = { monthlyLimitEur: 0 };
   let items = [];
   let filter = "all";
   let query = "";
   let editingId = null;
+  let monthKey = TODAY_KEY; // mese visualizzato; TODAY_KEY è il mese reale di oggi
 
   let selectionMode = false;
   let selectedIds = new Set();
@@ -19,8 +20,8 @@ export function createUI({ MONTH_KEY }) {
   let newRecurringEndMonth = "";
 
   // Recurring month carry-over (Option B)
-  const RECUR_PROMPT_PREFIX = NS + "sottosoglia_recurring_prompt_v1_"; // + MONTH_KEY
-  const RECUR_PROMPT_KEY = `${RECUR_PROMPT_PREFIX}${MONTH_KEY}`;
+  const RECUR_PROMPT_PREFIX = NS + "sottosoglia_recurring_prompt_v1_"; // + TODAY_KEY
+  const RECUR_PROMPT_KEY = `${RECUR_PROMPT_PREFIX}${TODAY_KEY}`;
 
   // Undo
   const UNDO_MS = 6500;
@@ -43,6 +44,15 @@ export function createUI({ MONTH_KEY }) {
   const topbar = $("topbar");
   const addBar = $("addBar");
   const monthPill = $("monthPill");
+  const monthPrev = $("monthPrev");
+  const monthNext = $("monthNext");
+
+  // Riepilogo dei mesi
+  const monthsBackdrop = $("monthsBackdrop");
+  const monthsSheet = $("monthsSheet");
+  const monthsClose = $("monthsClose");
+  const monthsToday = $("monthsToday");
+  const monthsList = $("monthsList");
   const totalEurEl = $("totalEur");
   const limitEurEl = $("limitEur");
   const remainingEurEl = $("remainingEur");
@@ -176,6 +186,18 @@ export function createUI({ MONTH_KEY }) {
     }
     const outM = String(mm).padStart(2, "0");
     return `${y}-${outM}`;
+  }
+
+  function nextMonthKey(key) {
+    const m = String(key).match(/^(\d{4})-(\d{2})$/);
+    if (!m) return "";
+    let y = Number(m[1]);
+    let mm = Number(m[2]) + 1;
+    if (mm === 13) {
+      mm = 1;
+      y += 1;
+    }
+    return `${y}-${String(mm).padStart(2, "0")}`;
   }
 
   // UI: MM/YYYY  <-> Storage: YYYY-MM
@@ -400,7 +422,8 @@ export function createUI({ MONTH_KEY }) {
       excludedInfoEl.textContent = "";
     }
 
-    monthPill.textContent = formatMonthPretty(MONTH_KEY);
+    monthPill.textContent = formatMonthPretty(monthKey);
+    monthPill.classList.toggle("isOther", monthKey !== TODAY_KEY);
   }
 
   // ---------------- Filters ----------------
@@ -425,7 +448,7 @@ export function createUI({ MONTH_KEY }) {
 
   // ---------------- Data helpers ----------------
   async function duplicateItem(e) {
-    const copy = { ...e, id: uid(), createdAt: Date.now(), monthKey: MONTH_KEY };
+    const copy = { ...e, id: uid(), createdAt: Date.now(), monthKey: monthKey };
     await dbPut(STORE_EXP, copy);
     await refresh();
   }
@@ -440,7 +463,7 @@ export function createUI({ MONTH_KEY }) {
   }
 
   async function clearCurrentMonth() {
-    const ok = confirm(`Vuoi eliminare TUTTE le voci di ${MONTH_KEY}? Questa azione non è annullabile.`);
+    const ok = confirm(`Vuoi eliminare TUTTE le voci di ${formatMonthPretty(monthKey)}? Questa azione non è annullabile.`);
     if (!ok) return;
 
     for (const e of items) {
@@ -485,14 +508,15 @@ export function createUI({ MONTH_KEY }) {
   }
 
   async function maybeOfferRecurringImport() {
+    if (monthKey !== TODAY_KEY) return;
     const status = getPromptStatus();
     if (status) return; // already asked this month (imported/skipped)
 
-    const prevKey = prevMonthKey(MONTH_KEY);
+    const prevKey = prevMonthKey(TODAY_KEY);
     if (!prevKey) return;
 
     const prevItems = await listExpensesByMonth(prevKey);
-    const candidates = prevItems.filter(e => isActiveRecurringForMonth(e, MONTH_KEY));
+    const candidates = prevItems.filter(e => isActiveRecurringForMonth(e, TODAY_KEY));
 
     if (candidates.length === 0) {
       setPromptStatus("none");
@@ -513,7 +537,7 @@ export function createUI({ MONTH_KEY }) {
 
     const msg =
       `Ho trovato ${toImport.length} spese ricorrenti in ${formatMonthPretty(prevKey)}.\n` +
-      `Vuoi importarle in ${formatMonthPretty(MONTH_KEY)}?`;
+      `Vuoi importarle in ${formatMonthPretty(TODAY_KEY)}?`;
 
     const ok = confirm(msg);
 
@@ -528,7 +552,7 @@ export function createUI({ MONTH_KEY }) {
       const copy = {
         ...e,
         id: uid(),
-        monthKey: MONTH_KEY,
+        monthKey: TODAY_KEY,
         createdAt: Date.now()
       };
       await dbPut(STORE_EXP, copy);
@@ -537,6 +561,69 @@ export function createUI({ MONTH_KEY }) {
     setPromptStatus("imported");
     await refresh();
     alert(`Importate ${toImport.length} spese ricorrenti nel mese corrente.`);
+  }
+
+  // ---------------- Mese visualizzato e riepilogo ----------------
+  async function goToMonth(key) {
+    if (!key || key === monthKey) return;
+    if (selectionMode) closeSelectionMode();
+    clearUndo();
+    monthKey = key;
+    await refresh();
+    window.scrollTo({ top: 0 });
+  }
+
+  async function renderMonths() {
+    const byMonth = new Map();
+    for (const e of await listAllExpenses()) {
+      if (!/^\d{4}-\d{2}$/.test(String(e.monthKey))) continue;
+      const s = byMonth.get(e.monthKey) || { total: 0, count: 0 };
+      if (!e.isExcluded) s.total += e.amountEur || 0;
+      s.count += 1;
+      byMonth.set(e.monthKey, s);
+    }
+    // Il mese di oggi e quello che stai guardando compaiono sempre, anche senza voci.
+    for (const key of [TODAY_KEY, monthKey]) {
+      if (!byMonth.has(key)) byMonth.set(key, { total: 0, count: 0 });
+    }
+
+    const limit = Number(settings.monthlyLimitEur) || 0;
+    monthsList.innerHTML = "";
+    for (const key of [...byMonth.keys()].sort().reverse()) {
+      const s = byMonth.get(key);
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "monthRow" + (key === monthKey ? " isViewed" : "");
+      row.dataset.month = key;
+
+      const left = document.createElement("div");
+      const name = document.createElement("div");
+      name.style.fontWeight = "950";
+      name.textContent = formatMonthPretty(key) + (key === TODAY_KEY ? " • oggi" : "");
+      const sub = document.createElement("div");
+      sub.className = "muted";
+      sub.style.marginTop = "2px";
+      sub.textContent = s.count === 1 ? "1 voce" : `${s.count} voci`;
+      left.append(name, sub);
+
+      const right = document.createElement("div");
+      right.style.textAlign = "right";
+      right.style.fontWeight = "950";
+      right.textContent = limit > 0 ? `€ ${s.total} / € ${limit}` : `€ ${s.total}`;
+      if (limit > 0 && s.total > limit) right.style.color = "#ef4444";
+
+      row.append(left, right);
+      row.onclick = async () => {
+        closeSheet(monthsBackdrop, monthsSheet);
+        await goToMonth(key);
+      };
+      monthsList.appendChild(row);
+    }
+  }
+
+  async function openMonths() {
+    await renderMonths();
+    openSheet(monthsBackdrop, monthsSheet);
   }
 
   // ---------------- Row actions ----------------
@@ -606,7 +693,7 @@ export function createUI({ MONTH_KEY }) {
       metaWrap.appendChild(meta);
 
       if (e.isRecurring) {
-        const leftMonths = monthsLeftFromEndMonth(MONTH_KEY, e.endMonth || "");
+        const leftMonths = monthsLeftFromEndMonth(monthKey, e.endMonth || "");
         const uiEnd = e.endMonth ? yyyyMMToMMYYYY(e.endMonth) : "";
         if (leftMonths !== null && leftMonths > 0) {
           const mm = document.createElement("div");
@@ -819,7 +906,7 @@ export function createUI({ MONTH_KEY }) {
   // ---------------- Public API ----------------
   async function refresh() {
     settings = (await dbGet(STORE_SET, "main")) || { monthlyLimitEur: 0 };
-    items = await listExpensesByMonth(MONTH_KEY);
+    items = await listExpensesByMonth(monthKey);
 
     for (const e of items) {
       if (typeof e.isExcluded !== "boolean") e.isExcluded = false;
@@ -840,7 +927,8 @@ export function createUI({ MONTH_KEY }) {
     setupListDelegation();
     applyTheme(getSavedTheme());
     loadEndMonth();
-    monthPill.textContent = formatMonthPretty(MONTH_KEY);
+    monthPill.textContent = formatMonthPretty(monthKey);
+    monthPill.classList.toggle("isOther", monthKey !== TODAY_KEY);
 
     if (selClear && selAll && selCopy) {
       selClear.onclick = () => closeSelectionMode();
@@ -866,6 +954,17 @@ export function createUI({ MONTH_KEY }) {
         }
       };
     }
+
+    // Navigazione tra i mesi
+    monthPrev.onclick = () => goToMonth(prevMonthKey(monthKey));
+    monthNext.onclick = () => goToMonth(nextMonthKey(monthKey));
+    monthPill.onclick = () => openMonths().catch(console.error);
+    monthsClose.onclick = () => closeSheet(monthsBackdrop, monthsSheet);
+    monthsBackdrop.onclick = () => closeSheet(monthsBackdrop, monthsSheet);
+    monthsToday.onclick = async () => {
+      closeSheet(monthsBackdrop, monthsSheet);
+      await goToMonth(TODAY_KEY);
+    };
 
     // Search
     searchInput.oninput = debounce(() => {
@@ -973,7 +1072,7 @@ export function createUI({ MONTH_KEY }) {
 
       const e = {
         id: uid(),
-        monthKey: MONTH_KEY,
+        monthKey: monthKey,
         createdAt: Date.now(),
         amountEur: roundUpToEuro(parsed),
         label,
@@ -1000,8 +1099,8 @@ export function createUI({ MONTH_KEY }) {
     eiBackdrop.onclick = () => closeSheet(eiBackdrop, eiSheet);
 
     doExport.onclick = () => {
-      const csv = expensesToCSV(MONTH_KEY, items);
-      downloadTextFile(`sottosoglia_spese_${MONTH_KEY}.csv`, csv);
+      const csv = expensesToCSV(monthKey, items);
+      downloadTextFile(`sottosoglia_spese_${monthKey}.csv`, csv);
       closeSheet(eiBackdrop, eiSheet);
     };
 
@@ -1059,7 +1158,7 @@ export function createUI({ MONTH_KEY }) {
 
           batch.push({
             id: uid(),
-            monthKey: MONTH_KEY,
+            monthKey: monthKey,
             createdAt,
             amountEur,
             label,
@@ -1075,7 +1174,7 @@ export function createUI({ MONTH_KEY }) {
 
         closeSheet(eiBackdrop, eiSheet);
         await refresh();
-        alert(`Import completato: ${imported} voci aggiunte a ${formatMonthPretty(MONTH_KEY)}.`);
+        alert(`Import completato: ${imported} voci aggiunte a ${formatMonthPretty(monthKey)}.`);
       } catch (err) {
         console.error(err);
         alert("Errore durante l'import. Controlla il formato del CSV.");

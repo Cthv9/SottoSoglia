@@ -11,7 +11,8 @@ Calcolatrice per le spese mensili: inserisci le spese con un tag, imposta una so
 - Spese ricorrenti con data di fine, riportate dal mese precedente.
 - Esclusione di una spesa dal totale, selezione multipla con somma.
 - Filtri per tag, metodo di pagamento, ricorrenza ed esclusione.
-- Esportazione e importazione CSV del mese corrente.
+- Navigazione tra i mesi con le frecce, e riepilogo di tutti i mesi toccando il mese in alto.
+- Esportazione e importazione CSV del mese visualizzato.
 - Tema automatico, chiaro o scuro.
 - Installabile come app dalla schermata Home, funziona offline.
 

@@ -2,7 +2,7 @@ import { $, NS, monthKeyFromDate } from "./utils.js";
 import { createUI } from "./ui.js";
 import { setupInstallUI, registerSW } from "./pwa.js";
 
-const MONTH_KEY = monthKeyFromDate(new Date());
+const TODAY_KEY = monthKeyFromDate(new Date());
 
 // L'anteprima non deve essere scambiata per la versione in uso.
 if (NS) {
@@ -14,7 +14,7 @@ if (NS) {
   document.body.prepend(banner);
 }
 
-const ui = createUI({ MONTH_KEY });
+const ui = createUI({ TODAY_KEY });
 
 // setup install sheet
 setupInstallUI({
