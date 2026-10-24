@@ -20,6 +20,6 @@ Formato breve, in italiano o in inglese, con un prefisso di tipo:
 - `docs:` documentazione
 - `ci:` workflow e configurazione
 
-## Versioni
+## Changelog
 
-Le versioni seguono il [Semantic Versioning](https://semver.org/lang/it/). Per una release: aggiungi la sezione in `CHANGELOG.md`, poi crea il tag `v<versione>`. La Action di release crea la Release con le note.
+Se la modifica è visibile all'utente, aggiungi una riga sotto `[Unreleased]` in `CHANGELOG.md`.

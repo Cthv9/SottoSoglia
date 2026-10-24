@@ -1,7 +1,7 @@
 # Pubblica su GitHub Pages:
-#  - radice /        -> branch main (produzione, la PWA in uso)
-#  - sottocartella /preview/ -> branch di sviluppo (anteprima con banner e dati separati)
-# Il deploy avviene solo tramite questa Action (Settings -> Pages -> Source: GitHub Actions).
+#   /          -> branch main (la PWA in uso)
+#   /preview/  -> branch di sviluppo (per provare le modifiche prima del merge)
+# Richiede Settings -> Pages -> Source: GitHub Actions.
 
 name: Pages
 
@@ -20,14 +20,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # Lo script di build viene dal ref che ha lanciato il workflow.
-      - uses: actions/checkout@v7
-        with:
-          path: src
-
       - uses: actions/checkout@v7
         with:
           ref: main
@@ -36,25 +34,18 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ccr-7690d7fe-l4wzjz
-          path: preview
+          path: dev
 
-      - name: Costruisci il sito
+      - name: Assembla il sito
         run: |
-          node src/scripts/build.mjs \
-            --prod prod --prod-id "$(git -C prod rev-parse --short=12 HEAD)" \
-            --preview preview --preview-id "$(git -C preview rev-parse --short=12 HEAD)" \
-            --out _site
+          FILES="index.html manifest.webmanifest sw.js favicon.ico pwa-192.png pwa-512.png assets js"
+          mkdir -p _site/preview
+          (cd prod && cp -r $FILES ../_site/)
+          (cd dev && cp -r $FILES ../_site/preview/)
 
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - id: deployment
         uses: actions/deploy-pages@v5

@@ -26,11 +26,3 @@ jobs:
 
       - name: Validazione HTML
         run: npx --yes html-validate@8 index.html
-
-      - name: Build di prova (produzione e anteprima)
-        run: node scripts/build.mjs --prod . --prod-id ci --preview . --preview-id ci --out /tmp/site
-
-      - name: Nessun segnaposto rimasto nel service worker
-        run: |
-          ! grep -q "__CACHE_" /tmp/site/sw.js
-          ! grep -q "__CACHE_" /tmp/site/preview/sw.js

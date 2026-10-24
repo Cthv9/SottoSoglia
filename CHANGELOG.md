@@ -1,6 +1,6 @@
 # Changelog
 
-Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/). Le versioni seguono il [Semantic Versioning](https://semver.org/lang/it/).
+Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 
 ## [Unreleased]
 
@@ -8,7 +8,8 @@ Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/). Le ve
 
 ### Changed
 - Pubblicazione tramite GitHub Actions. L'anteprima dello sviluppo è disponibile su `/preview/`, separata dalla versione in uso.
-- Service worker: il nome della cache è generato a ogni build, così ogni aggiornamento viene scaricato. Le pagine e il codice si caricano dalla rete prima della cache.
+- Service worker: rete prima, con la cache solo per l'uso offline, così ogni aggiornamento viene scaricato.
+- L'anteprima salva i propri dati con un prefisso, separati da quelli in uso.
 - Accessibilità: gli input hanno un'etichetta per i lettori di schermo.
 - Sicurezza: aggiunta una Content-Security-Policy e una referrer policy.
 - Manifest: aggiunti `id` e `lang`.

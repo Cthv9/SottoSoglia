@@ -32,14 +32,13 @@ Il progetto non ha build né dipendenze. Per provarlo in locale:
 python3 -m http.server 8000
 ```
 
-poi apri `http://localhost:8000`. Per il service worker usa l'anteprima pubblicata, perché in locale il nome della cache è un segnaposto.
+poi apri `http://localhost:8000`.
 
 ### Flusso di lavoro
 
 - `main` è la versione in uso. Non si committa direttamente.
 - Lo sviluppo avviene sul branch `ccr-7690d7fe-l4wzjz`. Ogni push pubblica l'anteprima su `/preview/`.
 - Un push su `main` pubblica la versione in uso.
-- Un tag `v<versione>` crea una Release con le note prese da [CHANGELOG.md](CHANGELOG.md).
 
 Dettagli in [CONTRIBUTING.md](CONTRIBUTING.md). Conformità CRA e AI Act in [COMPLIANCE.md](COMPLIANCE.md). Segnalazione di vulnerabilità in [SECURITY.md](SECURITY.md).
 

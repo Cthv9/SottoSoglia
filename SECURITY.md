@@ -2,7 +2,7 @@
 
 ## Versioni supportate
 
-Viene mantenuta solo la versione pubblicata da `main`. Le correzioni di sicurezza vanno su `main` e vengono rilasciate con un nuovo tag.
+Viene mantenuta solo la versione pubblicata da `main`. Le correzioni di sicurezza vanno su `main`.
 
 ## Come segnalare una vulnerabilità
 
@@ -20,6 +20,6 @@ Includi, se possibile:
 
 - Conferma di ricezione: entro 7 giorni.
 - Valutazione e aggiornamento sullo stato: periodici, fino alla correzione.
-- Correzione: rilasciata su `main` e pubblicata con un tag e una Release. Le note indicano la vulnerabilità corretta, senza dettagli sfruttabili finché la maggior parte degli utenti non ha aggiornato.
+- Correzione: pubblicata su `main`. Il `CHANGELOG.md` indica la vulnerabilità corretta, senza dettagli sfruttabili finché la maggior parte degli utenti non ha aggiornato.
 
 Le vulnerabilità sfruttate attivamente sono trattate come priorità. Gli obblighi di segnalazione previsti dal Cyber Resilience Act sono descritti in [COMPLIANCE.md](COMPLIANCE.md).

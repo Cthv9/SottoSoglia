@@ -28,7 +28,7 @@ La PWA è un prodotto con elementi digitali. Il CRA si applica a chi lo immette 
 | Accesso ai dati protetto, nessuna trasmissione non necessaria | Nessun invio di dati; CSP che limita le connessioni a `self` |
 | Dati personali minimizzati | Solo le spese, salvate localmente; vedi [PRIVACY.md](PRIVACY.md) |
 | Riduzione della superficie di attacco | Nessun backend, nessuna dipendenza runtime, nessun permesso del dispositivo |
-| Aggiornamenti di sicurezza distribuiti | Deploy da `main` a ogni push; Release con tag per la tracciabilità |
+| Aggiornamenti di sicurezza distribuiti | Deploy da `main` a ogni push; modifiche tracciate nella cronologia dei commit e in `CHANGELOG.md` |
 | Gestione delle vulnerabilità | Segnalazione privata e processo in [SECURITY.md](SECURITY.md) |
 | Distinta dei componenti (SBOM) | Vuota a runtime. Le Action sono fissate per versione in `.github/workflows` |
 | Periodo di supporto dichiarato | Supporto dell'ultima versione pubblicata da `main`. Il periodo va definito e pubblicato |
@@ -52,4 +52,4 @@ Non viene trasmesso nessun dato personale. Vedi [PRIVACY.md](PRIVACY.md).
 
 ## Revisione
 
-Questo documento viene aggiornato a ogni release che cambia il comportamento, la distribuzione o il supporto del prodotto.
+Questo documento viene aggiornato a ogni modifica che cambia il comportamento, la distribuzione o il supporto del prodotto.
