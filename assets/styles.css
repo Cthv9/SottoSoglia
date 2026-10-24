@@ -47,6 +47,17 @@ body{
 /* Room for fixed add bar */
 body{ padding-bottom: 116px; }
 
+/* Effetto app: niente selezione del testo né menu di sistema, tranne nei campi di testo. */
+body{
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea{
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .wrap{ max-width: 720px; margin: 0 auto; padding: 14px 16px 18px; }
 
 .muted{ color: var(--muted); font-size: 12px; margin-top: 8px; }

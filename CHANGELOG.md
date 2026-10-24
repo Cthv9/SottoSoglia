@@ -4,6 +4,9 @@ Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Il testo non si seleziona più fuori dai campi di testo e non compare il menu di sistema ("Cerca sul web"). Prima valeva solo per le righe della lista.
+
 ## [1.1.0] - 2026-10-23
 
 ### Changed
