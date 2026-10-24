@@ -116,6 +116,7 @@ html[data-theme="light"] .topbar.scrolled{
   font-weight: 950;
   font-size: 12px;
   white-space: nowrap;
+  cursor: pointer;
 }
 /* Mese diverso da oggi: evidenziato, per non aggiungere spese al mese sbagliato. */
 .monthPill.isOther{ border-color: #f59e0b; }

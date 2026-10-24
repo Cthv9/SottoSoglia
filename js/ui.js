@@ -931,6 +931,7 @@ export function createUI({ TODAY_KEY }) {
     // Navigazione tra i mesi
     monthPrev.onclick = () => goToMonth(prevMonthKey(monthKey));
     monthNext.onclick = () => goToMonth(nextMonthKey(monthKey));
+    monthPill.onclick = () => goToMonth(TODAY_KEY); // torna al mese corrente
 
     // Dashboard (dal menu)
     openDashBtn.onclick = () => {
