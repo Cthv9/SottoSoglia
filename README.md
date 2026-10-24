@@ -8,7 +8,7 @@ Calcolatrice per le spese mensili: inserisci le spese con un tag, imposta una so
 ## Funzioni
 
 - Spese con importo, tag e metodo di pagamento (carta, conto, PayPal, Revolut).
-- Spese ricorrenti con data di fine, riportate dal mese precedente.
+- Spese ricorrenti con data di fine, riportate nel nuovo mese all'apertura o su richiesta dal menu.
 - Esclusione di una spesa dal totale, selezione multipla con somma.
 - Filtri per tag, metodo di pagamento, ricorrenza ed esclusione.
 - Navigazione tra i mesi con le frecce, e riepilogo di tutti i mesi toccando il mese in alto.

@@ -89,6 +89,7 @@ export function createUI({ TODAY_KEY }) {
   const menuClose = $("menuClose");
   const openEIBtn = $("openEIBtn");
   const openLimitBtn = $("openLimitBtn");
+  const carryRecurringBtn = $("carryRecurringBtn");
   const themeAuto = $("themeAuto");
   const themeLight = $("themeLight");
   const themeDark = $("themeDark");
@@ -507,57 +508,74 @@ export function createUI({ TODAY_KEY }) {
     return end >= monthKey;
   }
 
-  async function maybeOfferRecurringImport() {
-    if (monthKey !== TODAY_KEY) return;
-    const status = getPromptStatus();
-    if (status) return; // already asked this month (imported/skipped)
+  // Ricorrenti da riportare in `target`: quelle attive del mese più recente, prima di
+  // `target`, che ne ha. Se un mese è stato saltato, la catena non si interrompe.
+  async function findRecurringToCarry(target) {
+    const bySource = new Map();
+    for (const e of await listAllExpenses()) {
+      const k = String(e.monthKey);
+      if (!/^\d{4}-\d{2}$/.test(k) || k >= target) continue;
+      if (!isActiveRecurringForMonth(e, target)) continue;
+      if (!bySource.has(k)) bySource.set(k, []);
+      bySource.get(k).push(e);
+    }
+    const sourceKey = [...bySource.keys()].sort().pop() || "";
+    if (!sourceKey) return { sourceKey, toImport: [] };
 
-    const prevKey = prevMonthKey(TODAY_KEY);
-    if (!prevKey) return;
+    // Evita i doppioni con le ricorrenti già presenti nel mese di destinazione.
+    const already = new Set(
+      (await listExpensesByMonth(target)).filter((e) => e.isRecurring).map(recurringSignature)
+    );
+    return {
+      sourceKey,
+      toImport: bySource.get(sourceKey).filter((e) => !already.has(recurringSignature(e))),
+    };
+  }
 
-    const prevItems = await listExpensesByMonth(prevKey);
-    const candidates = prevItems.filter(e => isActiveRecurringForMonth(e, TODAY_KEY));
+  async function carryInto(target, toImport) {
+    await dbPutBatch(
+      STORE_EXP,
+      toImport.map((e) => ({ ...e, id: uid(), monthKey: target, createdAt: Date.now() }))
+    );
+  }
 
-    if (candidates.length === 0) {
-      setPromptStatus("none");
+  // Dal menu o dal mese vuoto: riporta le ricorrenti nel mese visualizzato.
+  async function carryRecurringHere() {
+    const target = monthKey;
+    const { sourceKey, toImport } = await findRecurringToCarry(target);
+    if (toImport.length === 0) {
+      alert(`Nessuna spesa ricorrente da riportare in ${formatMonthPretty(target)}.`);
       return;
     }
-
-    // build signature set of existing recurring in current month (avoid duplicates)
-    const currentRecurringSigs = new Set(
-      items.filter(e => e.isRecurring).map(recurringSignature)
+    const ok = confirm(
+      `Riportare ${toImport.length} spese ricorrenti da ${formatMonthPretty(sourceKey)} in ${formatMonthPretty(target)}?`
     );
+    if (!ok) return;
+    await carryInto(target, toImport);
+    await refresh();
+  }
 
-    const toImport = candidates.filter(e => !currentRecurringSigs.has(recurringSignature(e)));
+  // All'apertura, una volta al mese: propone le ricorrenti nel mese di oggi.
+  async function maybeOfferRecurringImport() {
+    if (monthKey !== TODAY_KEY) return;
+    if (getPromptStatus()) return; // già chiesto questo mese (importate o rifiutate)
 
+    const { sourceKey, toImport } = await findRecurringToCarry(TODAY_KEY);
     if (toImport.length === 0) {
       setPromptStatus("none");
       return;
     }
 
-    const msg =
-      `Ho trovato ${toImport.length} spese ricorrenti in ${formatMonthPretty(prevKey)}.\n` +
-      `Vuoi importarle in ${formatMonthPretty(TODAY_KEY)}?`;
-
-    const ok = confirm(msg);
-
+    const ok = confirm(
+      `Ho trovato ${toImport.length} spese ricorrenti in ${formatMonthPretty(sourceKey)}.\n` +
+      `Vuoi importarle in ${formatMonthPretty(TODAY_KEY)}?`
+    );
     if (!ok) {
       setPromptStatus("skipped");
       return;
     }
 
-
-    // import: copy into current month
-    for (const e of toImport) {
-      const copy = {
-        ...e,
-        id: uid(),
-        monthKey: TODAY_KEY,
-        createdAt: Date.now()
-      };
-      await dbPut(STORE_EXP, copy);
-    }
-
+    await carryInto(TODAY_KEY, toImport);
     setPromptStatus("imported");
     await refresh();
     alert(`Importate ${toImport.length} spese ricorrenti nel mese corrente.`);
@@ -659,6 +677,15 @@ export function createUI({ TODAY_KEY }) {
           Tip: usa tag coerenti (es. “Affitto”, “Benzina”) per filtrare meglio.
         </div>
       `;
+      if (items.length === 0) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn";
+        btn.style.marginTop = "12px";
+        btn.textContent = "Riporta le ricorrenti";
+        btn.onclick = () => carryRecurringHere().catch(console.error);
+        box.appendChild(btn);
+      }
       listEl.appendChild(box);
       return;
     }
@@ -954,6 +981,12 @@ export function createUI({ TODAY_KEY }) {
         }
       };
     }
+
+    // Riporta le ricorrenti nel mese visualizzato
+    carryRecurringBtn.onclick = async () => {
+      closeSheet(menuBackdrop, menuSheet);
+      await carryRecurringHere();
+    };
 
     // Navigazione tra i mesi
     monthPrev.onclick = () => goToMonth(prevMonthKey(monthKey));

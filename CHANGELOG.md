@@ -6,12 +6,14 @@ Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 
 ### Added
 - Navigazione tra i mesi con le frecce accanto al mese in alto. Il mese diverso da oggi ha il bordo evidenziato.
+- Riporto delle ricorrenti su richiesta: "Riporta ricorrenti in questo mese" nel menu, e "Riporta le ricorrenti" nei mesi senza voci. Vale per qualsiasi mese visualizzato, anche passato o futuro.
 - Riepilogo di tutti i mesi, aperto toccando il mese: totale conteggiato, numero di voci e confronto con la soglia. Il pulsante Oggi riporta al mese corrente.
 
 ### Changed
 - Aggiunta, importazione, esportazione CSV e "Ripulisci elenco" valgono per il mese visualizzato. Il riporto automatico delle ricorrenti resta legato al mese di oggi.
 
 ### Fixed
+- Le ricorrenti non si perdono più se non apri l'app per un mese: l'avviso all'apertura cerca il mese più recente che ne ha, invece del solo mese precedente.
 - Il testo non si seleziona più fuori dai campi di testo e non compare il menu di sistema ("Cerca sul web"). Prima valeva solo per le righe della lista.
 
 ## [1.1.0] - 2026-10-23
