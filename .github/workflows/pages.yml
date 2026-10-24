@@ -45,7 +45,7 @@ jobs:
             --preview preview --preview-id "$(git -C preview rev-parse --short=12 HEAD)" \
             --out _site
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
