@@ -9,7 +9,7 @@ Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/). Le ve
 ### Changed
 - Pubblicazione tramite GitHub Actions. L'anteprima dello sviluppo è disponibile su `/preview/`, separata dalla versione in uso.
 - Service worker: il nome della cache è generato a ogni build, così ogni aggiornamento viene scaricato. Le pagine e il codice si caricano dalla rete prima della cache.
-- Accessibilità: lo zoom è di nuovo consentito e gli input hanno un'etichetta.
+- Accessibilità: gli input hanno un'etichetta per i lettori di schermo.
 - Sicurezza: aggiunta una Content-Security-Policy e una referrer policy.
 - Manifest: aggiunti `id` e `lang`.
 - Codice: import statici al posto di quelli dinamici, nessun cambio di comportamento.
