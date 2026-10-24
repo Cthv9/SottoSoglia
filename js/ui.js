@@ -1,5 +1,6 @@
 import { $, NS, clamp, escapeHtml, monthsLeftFromEndMonth, debounce, uid, parseAmount, roundUpToEuro } from "./utils.js";
 import { STORE_EXP, STORE_SET, dbGet, dbPut, dbDelete, dbPutBatch, listExpensesByMonth, listAllExpenses, listRecentLabels } from "./db.js";
+import { renderDashboard } from "./dashboard.js";
 import { downloadTextFile, expensesToCSV, parseCSV, toBool, toInt } from "./csv.js";
 
 export function createUI({ TODAY_KEY }) {
@@ -9,6 +10,7 @@ export function createUI({ TODAY_KEY }) {
   let filter = "all";
   let query = "";
   let editingId = null;
+  let dashPeriod = 6; // mesi mostrati nella dashboard
   let monthKey = TODAY_KEY; // mese visualizzato; TODAY_KEY è il mese reale di oggi
 
   let selectionMode = false;
@@ -47,12 +49,12 @@ export function createUI({ TODAY_KEY }) {
   const monthPrev = $("monthPrev");
   const monthNext = $("monthNext");
 
-  // Riepilogo dei mesi
-  const monthsBackdrop = $("monthsBackdrop");
-  const monthsSheet = $("monthsSheet");
-  const monthsClose = $("monthsClose");
-  const monthsToday = $("monthsToday");
-  const monthsList = $("monthsList");
+  // Dashboard
+  const openDashBtn = $("openDashBtn");
+  const dashBackdrop = $("dashBackdrop");
+  const dashSheet = $("dashSheet");
+  const dashClose = $("dashClose");
+  const dashBody = $("dashBody");
   const totalEurEl = $("totalEur");
   const limitEurEl = $("limitEur");
   const remainingEurEl = $("remainingEur");
@@ -89,7 +91,6 @@ export function createUI({ TODAY_KEY }) {
   const menuClose = $("menuClose");
   const openEIBtn = $("openEIBtn");
   const openLimitBtn = $("openLimitBtn");
-  const carryRecurringBtn = $("carryRecurringBtn");
   const themeAuto = $("themeAuto");
   const themeLight = $("themeLight");
   const themeDark = $("themeDark");
@@ -539,22 +540,6 @@ export function createUI({ TODAY_KEY }) {
     );
   }
 
-  // Dal menu o dal mese vuoto: riporta le ricorrenti nel mese visualizzato.
-  async function carryRecurringHere() {
-    const target = monthKey;
-    const { sourceKey, toImport } = await findRecurringToCarry(target);
-    if (toImport.length === 0) {
-      alert(`Nessuna spesa ricorrente da riportare in ${formatMonthPretty(target)}.`);
-      return;
-    }
-    const ok = confirm(
-      `Riportare ${toImport.length} spese ricorrenti da ${formatMonthPretty(sourceKey)} in ${formatMonthPretty(target)}?`
-    );
-    if (!ok) return;
-    await carryInto(target, toImport);
-    await refresh();
-  }
-
   // All'apertura, una volta al mese: propone le ricorrenti nel mese di oggi.
   async function maybeOfferRecurringImport() {
     if (monthKey !== TODAY_KEY) return;
@@ -591,57 +576,27 @@ export function createUI({ TODAY_KEY }) {
     window.scrollTo({ top: 0 });
   }
 
-  async function renderMonths() {
-    const byMonth = new Map();
-    for (const e of await listAllExpenses()) {
-      if (!/^\d{4}-\d{2}$/.test(String(e.monthKey))) continue;
-      const s = byMonth.get(e.monthKey) || { total: 0, count: 0 };
-      if (!e.isExcluded) s.total += e.amountEur || 0;
-      s.count += 1;
-      byMonth.set(e.monthKey, s);
-    }
-    // Il mese di oggi e quello che stai guardando compaiono sempre, anche senza voci.
-    for (const key of [TODAY_KEY, monthKey]) {
-      if (!byMonth.has(key)) byMonth.set(key, { total: 0, count: 0 });
-    }
-
-    const limit = Number(settings.monthlyLimitEur) || 0;
-    monthsList.innerHTML = "";
-    for (const key of [...byMonth.keys()].sort().reverse()) {
-      const s = byMonth.get(key);
-      const row = document.createElement("button");
-      row.type = "button";
-      row.className = "monthRow" + (key === monthKey ? " isViewed" : "");
-      row.dataset.month = key;
-
-      const left = document.createElement("div");
-      const name = document.createElement("div");
-      name.style.fontWeight = "950";
-      name.textContent = formatMonthPretty(key) + (key === TODAY_KEY ? " • oggi" : "");
-      const sub = document.createElement("div");
-      sub.className = "muted";
-      sub.style.marginTop = "2px";
-      sub.textContent = s.count === 1 ? "1 voce" : `${s.count} voci`;
-      left.append(name, sub);
-
-      const right = document.createElement("div");
-      right.style.textAlign = "right";
-      right.style.fontWeight = "950";
-      right.textContent = limit > 0 ? `€ ${s.total} / € ${limit}` : `€ ${s.total}`;
-      if (limit > 0 && s.total > limit) right.style.color = "#ef4444";
-
-      row.append(left, right);
-      row.onclick = async () => {
-        closeSheet(monthsBackdrop, monthsSheet);
+  // ---------------- Dashboard ----------------
+  async function drawDashboard() {
+    renderDashboard(dashBody, {
+      expenses: await listAllExpenses(),
+      todayKey: TODAY_KEY,
+      period: dashPeriod,
+      onPeriod: (p) => {
+        dashPeriod = p;
+        drawDashboard().catch(console.error);
+      },
+      onOpenMonth: async (key) => {
+        closeSheet(dashBackdrop, dashSheet);
         await goToMonth(key);
-      };
-      monthsList.appendChild(row);
-    }
+      },
+    });
   }
 
-  async function openMonths() {
-    await renderMonths();
-    openSheet(monthsBackdrop, monthsSheet);
+  async function openDashboard() {
+    await drawDashboard();
+    dashSheet.scrollTop = 0;
+    openSheet(dashBackdrop, dashSheet);
   }
 
   // ---------------- Row actions ----------------
@@ -677,15 +632,6 @@ export function createUI({ TODAY_KEY }) {
           Tip: usa tag coerenti (es. “Affitto”, “Benzina”) per filtrare meglio.
         </div>
       `;
-      if (items.length === 0) {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "btn";
-        btn.style.marginTop = "12px";
-        btn.textContent = "Riporta le ricorrenti";
-        btn.onclick = () => carryRecurringHere().catch(console.error);
-        box.appendChild(btn);
-      }
       listEl.appendChild(box);
       return;
     }
@@ -982,22 +928,17 @@ export function createUI({ TODAY_KEY }) {
       };
     }
 
-    // Riporta le ricorrenti nel mese visualizzato
-    carryRecurringBtn.onclick = async () => {
-      closeSheet(menuBackdrop, menuSheet);
-      await carryRecurringHere();
-    };
-
     // Navigazione tra i mesi
     monthPrev.onclick = () => goToMonth(prevMonthKey(monthKey));
     monthNext.onclick = () => goToMonth(nextMonthKey(monthKey));
-    monthPill.onclick = () => openMonths().catch(console.error);
-    monthsClose.onclick = () => closeSheet(monthsBackdrop, monthsSheet);
-    monthsBackdrop.onclick = () => closeSheet(monthsBackdrop, monthsSheet);
-    monthsToday.onclick = async () => {
-      closeSheet(monthsBackdrop, monthsSheet);
-      await goToMonth(TODAY_KEY);
+
+    // Dashboard (dal menu)
+    openDashBtn.onclick = () => {
+      closeSheet(menuBackdrop, menuSheet);
+      openDashboard().catch(console.error);
     };
+    dashClose.onclick = () => closeSheet(dashBackdrop, dashSheet);
+    dashBackdrop.onclick = () => closeSheet(dashBackdrop, dashSheet);
 
     // Search
     searchInput.oninput = debounce(() => {

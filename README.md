@@ -8,10 +8,11 @@ Calcolatrice per le spese mensili: inserisci le spese con un tag, imposta una so
 ## Funzioni
 
 - Spese con importo, tag e metodo di pagamento (carta, conto, PayPal, Revolut).
-- Spese ricorrenti con data di fine, riportate nel nuovo mese all'apertura o su richiesta dal menu.
+- Spese ricorrenti con data di fine, riportate nel nuovo mese all'apertura, anche se hai saltato un mese.
 - Esclusione di una spesa dal totale, selezione multipla con somma.
 - Filtri per tag, metodo di pagamento, ricorrenza ed esclusione.
-- Navigazione tra i mesi con le frecce, e riepilogo di tutti i mesi toccando il mese in alto.
+- Navigazione tra i mesi con le frecce accanto al mese in alto.
+- Dashboard dal menu: andamento mensile, numeri chiave, spesa per tag, elenco dei mesi e rate in arrivo.
 - Esportazione e importazione CSV del mese visualizzato.
 - Tema automatico, chiaro o scuro.
 - Installabile come app dalla schermata Home, funziona offline.

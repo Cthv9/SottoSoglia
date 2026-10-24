@@ -6,8 +6,7 @@ Il formato segue [Keep a Changelog](https://keepachangelog.com/it/1.1.0/).
 
 ### Added
 - Navigazione tra i mesi con le frecce accanto al mese in alto. Il mese diverso da oggi ha il bordo evidenziato.
-- Riporto delle ricorrenti su richiesta: "Riporta ricorrenti in questo mese" nel menu, e "Riporta le ricorrenti" nei mesi senza voci. Vale per qualsiasi mese visualizzato, anche passato o futuro.
-- Riepilogo di tutti i mesi, aperto toccando il mese: totale conteggiato, numero di voci e confronto con la soglia. Il pulsante Oggi riporta al mese corrente.
+- Dashboard dal menu, separata dal lavoro mensile: andamento degli ultimi 3, 6 o 12 mesi, numeri chiave (media, mese più alto e più basso, totale), spesa per tag, elenco dei mesi e rate in arrivo. I mesi passati mostrano solo la spesa registrata, senza confronto con la soglia.
 
 ### Changed
 - Aggiunta, importazione, esportazione CSV e "Ripulisci elenco" valgono per il mese visualizzato. Il riporto automatico delle ricorrenti resta legato al mese di oggi.

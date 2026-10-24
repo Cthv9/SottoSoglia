@@ -30,7 +30,7 @@
       <div class="topbarRight">
         <div class="monthNav">
           <button class="monthArrow" id="monthPrev" type="button" aria-label="Mese precedente">‹</button>
-          <button class="monthPill" id="monthPill" type="button" aria-label="Riepilogo dei mesi">—</button>
+          <div class="monthPill" id="monthPill">—</div>
           <button class="monthArrow" id="monthNext" type="button" aria-label="Mese successivo">›</button>
         </div>
         <button class="iconBtn" id="installBtn" style="display:none;" aria-label="Installa">⬇︎</button>
@@ -131,9 +131,9 @@
     </div>
 
     <div class="sheetGroup" style="margin-top:12px;">
+      <button class="btn" id="openDashBtn" type="button">Dashboard</button>
       <button class="btn" id="openEIBtn">Esporta / Importa</button>
       <button class="btn" id="openLimitBtn">Modifica soglia</button>
-      <button class="btn" id="carryRecurringBtn" type="button">Riporta ricorrenti in questo mese</button>
       <button class="btn btnDanger" id="clearMonthBtn">Ripulisci elenco (mese)</button>
       <button class="btn" id="openInfoBtn">Info</button>
     </div>
@@ -249,18 +249,14 @@
     </div>
   </div>
 
-  <!-- Months overview sheet -->
-  <div id="monthsBackdrop" class="backdrop"></div>
-  <div id="monthsSheet" class="sheet" role="dialog" aria-modal="true" aria-label="Riepilogo dei mesi">
+  <!-- Dashboard sheet -->
+  <div id="dashBackdrop" class="backdrop"></div>
+  <div id="dashSheet" class="sheet tall" role="dialog" aria-modal="true" aria-label="Dashboard">
     <div class="rowBetween">
-      <div class="sheetTitle">Mesi</div>
-      <div class="row">
-        <button class="btn" id="monthsToday" type="button">Oggi</button>
-        <button class="btn" id="monthsClose" type="button">Chiudi</button>
-      </div>
+      <div class="sheetTitle">Dashboard</div>
+      <button class="btn" id="dashClose" type="button">Chiudi</button>
     </div>
-    <div class="muted" style="margin-top:10px;">Totale conteggiato rispetto alla soglia. Tocca un mese per aprirlo.</div>
-    <div class="monthsList" id="monthsList"></div>
+    <div id="dashBody" class="dashBody"></div>
   </div>
 
   <!-- Row Actions sheet -->
