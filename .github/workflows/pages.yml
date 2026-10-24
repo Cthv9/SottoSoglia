@@ -24,16 +24,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Lo script di build viene dal ref che ha lanciato il workflow.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: src
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           path: prod
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ccr-7690d7fe-l4wzjz
           path: preview
