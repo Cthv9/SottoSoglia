@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="description" content="SottoSoglia: spese mensili con tag, ricorrenze e soglia. I dati restano sul tuo dispositivo." />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; manifest-src 'self'; worker-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <title>SottoSoglia</title>
 
   <meta name="theme-color" content="#0f172a" />
@@ -55,7 +58,7 @@
         </div>
       </div>
 
-      <div class="bar" aria-label="Progresso rispetto alla soglia">
+      <div class="bar">
         <div class="barFill" id="barFill"></div>
       </div>
 
@@ -69,7 +72,7 @@
       <div class="rowBetween">
         <div style="font-weight:950">Voci</div>
         <div class="row">
-          <input id="searchInput" placeholder="Cerca tag…" />
+          <input id="searchInput" placeholder="Cerca tag…" aria-label="Cerca tag" />
           <button class="btn" id="filterBtn">Filtro</button>
         </div>
       </div>
@@ -83,8 +86,8 @@
   <footer class="addBar" id="addBar">
     <div class="addInner">
       <div class="addGrid">
-        <input id="amountInput" inputmode="decimal" placeholder="Importo" />
-        <input id="labelInput" placeholder="Tag (es. benzina)" list="recent-labels" />
+        <input id="amountInput" inputmode="decimal" placeholder="Importo" aria-label="Importo" />
+        <input id="labelInput" placeholder="Tag (es. benzina)" list="recent-labels" aria-label="Tag" />
         <datalist id="recent-labels"></datalist>
 
         <label class="chipToggle" title="Ricorrente">
@@ -103,8 +106,8 @@
         <div class="addHint" id="addHint">Ricorrente: ON</div>
       </div>
 
-      <div id="addRow3" style="margin-top:8px;">
-        <select id="paymentMethodInput" style="width:100%;">
+      <div style="margin-top:8px;">
+        <select id="paymentMethodInput" style="width:100%;" aria-label="Metodo di pagamento">
           <option value="">— Metodo di pagamento —</option>
           <option value="carta">Carta di credito</option>
           <option value="conto">Conto principale</option>
@@ -154,7 +157,7 @@
     </div>
 
     <div style="display:grid; gap:10px; margin-top:12px;">
-      <input id="limitInput" inputmode="numeric" placeholder="Soglia in euro (es. 1800)" />
+      <input id="limitInput" inputmode="numeric" placeholder="Soglia in euro (es. 1800)" aria-label="Soglia in euro" />
       <button class="btn" id="saveLimitBtn">Salva</button>
       <div class="muted">Suggerimento: inserisci l’entrata tipica mensile.</div>
     </div>
@@ -196,7 +199,7 @@
     </div>
 
     <div style="display:grid; gap:10px; margin-top:12px;">
-      <input id="endInput" placeholder="MM/YYYY (opzionale)" />
+      <input id="endInput" placeholder="MM/YYYY (opzionale)" aria-label="Fine ricorrenza" />
       <button class="btn" id="endSave">Salva</button>
     </div>
   </div>
@@ -272,22 +275,22 @@
     </div>
 
     <div style="display:grid; gap:10px; margin-top:12px;">
-      <input id="editAmount" inputmode="decimal" placeholder="Importo (es. 12,50)" />
-      <input id="editLabel" placeholder="Tag / descrizione" />
+      <input id="editAmount" inputmode="decimal" placeholder="Importo (es. 12,50)" aria-label="Importo" />
+      <input id="editLabel" placeholder="Tag / descrizione" aria-label="Tag" />
 
       <label class="row" style="gap:8px; user-select:none;">
         <input type="checkbox" id="editRecurring" />
         <span>Ricorrente</span>
       </label>
 
-      <input id="editEndMonth" placeholder="Fine ricorrenza (MM/YYYY) es. 03/2027" />
+      <input id="editEndMonth" placeholder="Fine ricorrenza (MM/YYYY) es. 03/2027" aria-label="Fine ricorrenza" />
 
       <label class="row" style="gap:8px; user-select:none;">
         <input type="checkbox" id="editExcluded" />
         <span>Escludi dal totale</span>
       </label>
 
-      <select id="editPaymentMethod">
+      <select id="editPaymentMethod" aria-label="Metodo di pagamento">
         <option value="">— Metodo di pagamento —</option>
         <option value="carta">Carta di credito</option>
         <option value="conto">Conto principale</option>

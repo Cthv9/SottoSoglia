@@ -1,0 +1,35 @@
+# Su tag v<versione> crea una GitHub Release con le note prese da CHANGELOG.md.
+# I tag non deployano: la produzione si aggiorna con i push su main.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Estrai le note della versione dal changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { show = 1; next }
+            /^## \[/ { show = 0 }
+            show
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          test -s RELEASE_NOTES.md
+
+      - name: Crea l'archivio dei sorgenti
+        run: git archive --format=zip --prefix="sottosoglia-${GITHUB_REF_NAME}/" -o "sottosoglia-${GITHUB_REF_NAME}.zip" HEAD
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: sottosoglia-${{ github.ref_name }}.zip

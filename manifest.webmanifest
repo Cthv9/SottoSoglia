@@ -2,6 +2,8 @@
   "name": "SottoSoglia",
   "short_name": "SottoSoglia",
   "description": "Calcolatrice per spese mensili con tag e soglia.",
+  "id": "./",
+  "lang": "it",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

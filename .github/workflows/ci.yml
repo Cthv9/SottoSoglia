@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, ccr-7690d7fe-l4wzjz]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Manifest come JSON valido
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest', 'utf8'))"
+
+      - name: Sintassi e import dei moduli JS
+        run: npx --yes esbuild@0.24.0 js/app.js --bundle --log-level=warning --outfile=/tmp/app.bundle.js
+
+      - name: Validazione HTML
+        run: npx --yes html-validate@8 index.html
+
+      - name: Build di prova (produzione e anteprima)
+        run: node scripts/build.mjs --prod . --prod-id ci --preview . --preview-id ci --out /tmp/site
+
+      - name: Nessun segnaposto rimasto nel service worker
+        run: |
+          ! grep -q "__CACHE_" /tmp/site/sw.js
+          ! grep -q "__CACHE_" /tmp/site/preview/sw.js

@@ -1,25 +1,22 @@
-# OS / editor / backup
+# Sistema operativo, editor, backup
 .DS_Store
 Thumbs.db
 desktop.ini
-v0.html
-v1.html
+*.log
 
 # VS Code (facoltativo)
 .vscode/
 *.code-workspace
 
-# Logs
-*.log
-
-# Node / build (nel caso finiscano dentro per errore)
-node_modules/
+# Output di build
+_site/
 dist/
-build/
-coverage/
-.cache/
 
-# Env
+# Dipendenze e cache, nel caso finiscano nella cartella per errore
+node_modules/
+.cache/
+coverage/
+
+# Ambiente
 .env
 .env.*
-v1.html
