@@ -4,3 +4,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Una sola PR a settimana per tutte le Action, invece di una per Action.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
