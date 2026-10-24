@@ -1,3 +1,6 @@
+// Produzione e anteprima condividono l'origin: l'anteprima usa nomi propri per i dati salvati.
+export const NS = location.pathname.includes("/preview/") ? "preview_" : "";
+
 export const $ = (id) => document.getElementById(id);
 
 export function monthKeyFromDate(d) {

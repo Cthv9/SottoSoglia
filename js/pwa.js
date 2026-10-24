@@ -1,4 +1,6 @@
-const LS_INSTALL_SEEN = "sottosoglia_install_seen_v1";
+import { NS } from "./utils.js";
+
+const LS_INSTALL_SEEN = NS + "sottosoglia_install_seen_v1";
 let deferredPrompt = null;
 
 function isStandalone() {

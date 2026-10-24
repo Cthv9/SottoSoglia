@@ -1,4 +1,4 @@
-import { $, clamp, escapeHtml, monthsLeftFromEndMonth, debounce, uid, parseAmount, roundUpToEuro } from "./utils.js";
+import { $, NS, clamp, escapeHtml, monthsLeftFromEndMonth, debounce, uid, parseAmount, roundUpToEuro } from "./utils.js";
 import { STORE_EXP, STORE_SET, dbGet, dbPut, dbDelete, dbPutBatch, listExpensesByMonth, listRecentLabels } from "./db.js";
 import { downloadTextFile, expensesToCSV, parseCSV, toBool, toInt } from "./csv.js";
 
@@ -15,11 +15,11 @@ export function createUI({ MONTH_KEY }) {
   const LONG_PRESS_MS = 420;
 
   // End month for NEW recurring expenses (stored internally as YYYY-MM)
-  const END_LS_KEY = "sottosoglia_new_endmonth_v2";
+  const END_LS_KEY = NS + "sottosoglia_new_endmonth_v2";
   let newRecurringEndMonth = "";
 
   // Recurring month carry-over (Option B)
-  const RECUR_PROMPT_PREFIX = "sottosoglia_recurring_prompt_v1_"; // + MONTH_KEY
+  const RECUR_PROMPT_PREFIX = NS + "sottosoglia_recurring_prompt_v1_"; // + MONTH_KEY
   const RECUR_PROMPT_KEY = `${RECUR_PROMPT_PREFIX}${MONTH_KEY}`;
 
   // Undo
@@ -28,7 +28,7 @@ export function createUI({ MONTH_KEY }) {
   let undoPayload = null;
 
   // Theme
-  const THEME_KEY = "sottosoglia_theme_v1"; // auto|light|dark
+  const THEME_KEY = NS + "sottosoglia_theme_v1"; // auto|light|dark
 
   // ---------------- Payment methods ----------------
   const PAYMENT_METHODS = {

@@ -1,4 +1,6 @@
-const DB_NAME = "sottosoglia_db";
+import { NS } from "./utils.js";
+
+const DB_NAME = NS + "sottosoglia_db";
 const DB_VERSION = 1;
 export const STORE_EXP = "expenses";
 export const STORE_SET = "settings";
